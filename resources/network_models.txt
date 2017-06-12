@@ -1,0 +1,38 @@
+
+
+to process cifar10 in python torch
+
+DCGAN_G (
+  (main): Sequential (
+    (initial.100-512.convt): ConvTranspose2d(100, 512, kernel_size=(4, 4), stride=(1, 1), bias=False)
+    (initial.512.batchnorm): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True)
+    (initial.512.relu): ReLU (inplace)
+    (pyramid.512-256.convt): ConvTranspose2d(512, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (pyramid.256.batchnorm): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True)
+    (pyramid.256.relu): ReLU (inplace)
+    (pyramid.256-128.convt): ConvTranspose2d(256, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (pyramid.128.batchnorm): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True)
+    (pyramid.128.relu): ReLU (inplace)
+    (pyramid.128-64.convt): ConvTranspose2d(128, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (pyramid.64.batchnorm): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
+    (pyramid.64.relu): ReLU (inplace)
+    (final.64-3.convt): ConvTranspose2d(64, 3, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (final.3.tanh): Tanh ()
+  )
+)
+DCGAN_D (
+  (main): Sequential (
+    (initial.conv.3-64): Conv2d(3, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (initial.relu.64): LeakyReLU (0.2, inplace)
+    (pyramid.64-128.conv): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (pyramid.128.batchnorm): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True)
+    (pyramid.128.relu): LeakyReLU (0.2, inplace)
+    (pyramid.128-256.conv): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (pyramid.256.batchnorm): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True)
+    (pyramid.256.relu): LeakyReLU (0.2, inplace)
+    (pyramid.256-512.conv): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (pyramid.512.batchnorm): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True)
+    (pyramid.512.relu): LeakyReLU (0.2, inplace)
+    (final.512-1.conv): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), bias=False)
+  )
+)

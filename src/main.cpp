@@ -8,6 +8,8 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "CCifar10.hpp"
+
 /*! \brief Timer */
 class Timer {
   using Clock = std::chrono::high_resolution_clock;
@@ -94,12 +96,22 @@ void test_1(void)
 
 int main(int argc, char **argv)
 {
+
+
+	CCifar10 cifar10;
+	cifar10.set_path("./bin/cifar-10-batches-bin");
+
+	cifar10.load_train_batchs();
+	cifar10.load_test_batchs();
+
+	cifar10.show_img(2, 1000);
+
+	return 0;
+
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
 	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
 	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
-
-
 
 
 

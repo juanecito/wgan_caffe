@@ -63,6 +63,7 @@
 							<builder id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.builder.debug.1279973116" managedBuildOn="true" name="Autotools Makefile Generator.Debug (GNU)" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.builder.debug"/>
 							<tool id="org.eclipse.linuxtools.cdt.autotools.core.gnu.toolchain.tool.configure.debug.1988734507" name="configure" superClass="org.eclipse.linuxtools.cdt.autotools.core.gnu.toolchain.tool.configure.debug">
 								<option defaultValue="CFLAGS=-g -O0" id="org.eclipse.linuxtools.cdt.autotools.core.option.configure.user.1131264859" superClass="org.eclipse.linuxtools.cdt.autotools.core.option.configure.user" valueType="string"/>
+								<option id="org.eclipse.linuxtools.cdt.autotools.core.option.configure.name.854637944" superClass="org.eclipse.linuxtools.cdt.autotools.core.option.configure.name" value="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.debug.1694271543" valueType="string"/>
 							</tool>
 							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.autogen.debug.361983301" name="autogen.sh" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.autogen.debug"/>
 							<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.debug.2092434696" name="GCC C Compiler" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.debug">
