@@ -51,7 +51,26 @@ class CCifar10
 			return imgs[img_index].rgb_;
 		}
 
-		void show_img(unsigned int batch_index, unsigned int img_index);
+		uint8_t* get_test_img(unsigned int img_index)
+		{
+			struct S_Cifar10_img* imgs = test_batchs_.at(0).get();
+			return imgs[img_index].rgb_;
+		}
+
+		uint8_t* get_ori_train_img(unsigned int batch_index, unsigned int img_index)
+		{
+			struct S_Cifar10_label_img* imgs = ori_train_batchs_.at(batch_index).get();
+			return (uint8_t*)imgs;
+		}
+
+		uint8_t* get_ori_test_img(unsigned int img_index)
+		{
+			struct S_Cifar10_label_img* imgs = ori_test_batchs_.at(0).get();
+			return (uint8_t*)imgs;
+		}
+
+		void show_train_img(unsigned int batch_index, unsigned int img_index);
+		void show_test_img(unsigned int img_index);
 		void show_img(uint8_t* img, size_t img_size);
 
 	private:
@@ -64,6 +83,9 @@ class CCifar10
 
 		std::vector<uint8_t[10000]> train_labels_;
 		std::vector<uint8_t[10000]> test_labels_;
+
+		std::vector<std::shared_ptr<struct S_Cifar10_label_img> > ori_train_batchs_;
+		std::vector<std::shared_ptr<struct S_Cifar10_label_img> > ori_test_batchs_;
 
 		std::vector<std::shared_ptr<struct S_Cifar10_img> > train_batchs_;
 		std::vector<std::shared_ptr<struct S_Cifar10_img> > test_batchs_;

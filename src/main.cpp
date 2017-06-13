@@ -1,3 +1,23 @@
+/* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
+/*
+ * main.cpp
+ * Copyright (C) 2017 Juan Maria Gomez Lopez <juanecitorr@gmail.com>
+ *
+ * caffe_network is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * sudoku_solver is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
 #include <cmath>
 #include <ctime>
 #include <chrono>
@@ -104,16 +124,23 @@ int main(int argc, char **argv)
 	cifar10.load_train_batchs();
 	cifar10.load_test_batchs();
 
-	cifar10.show_img((unsigned int)3, (unsigned int)3000);
-
-	return 0;
-
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
 	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
 	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
 
+	auto input_blob = net_d.blob_by_name("data");
+	input_blob->set_cpu_data((float*)cifar10.get_ori_train_img(0, 0));
 
+	float loss = 0.0;
+	for (unsigned int uiI = 0; uiI < 1000; uiI++)
+	{
+		net_d.Forward(&loss);
+		input_blob->set_cpu_data((float*)cifar10.get_ori_train_img(0, uiI));
+		net_d.Update();
+	}
+
+	std::cout << "loss " << loss << std::endl;
 
 #if 0
 

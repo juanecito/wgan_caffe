@@ -1,9 +1,9 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * sudoku_solver.cpp
+ * CCifar10.cpp
  * Copyright (C) 2017 Juan Maria Gomez Lopez <juanecitorr@gmail.com>
  *
- * sudoku_solver is free software: you can redistribute it and/or modify it
+ * caffe_network is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -53,10 +53,13 @@ const std::string CCifar10::test_batch_pattern_name_s = "test_batch.bin";
  */
 CCifar10::CCifar10(): is_test_loaded_(false), is_train_loaded_(false)
 {
-	this->test_batchs_.clear();
-	this->test_labels_.clear();
-	this->train_batchs_.clear();
-	this->train_labels_.clear();
+	test_batchs_.clear();
+	test_labels_.clear();
+	train_batchs_.clear();
+	train_labels_.clear();
+
+	ori_train_batchs_.clear();
+	ori_test_batchs_.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -116,16 +119,21 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index)
 		}
 	}
 
-	delete[] lb_imgs;
-
 	std::shared_ptr<struct S_Cifar10_img> train_batch_img(imgs, [](struct S_Cifar10_img* p){delete[] p;});
+	std::shared_ptr<struct S_Cifar10_label_img> train_batch_label_img(lb_imgs, [](struct S_Cifar10_label_img* p){delete[] p;});
 
 	if (train_batchs_.size() <= train_batch_index)
 	{
 		train_batchs_.resize(train_batch_index + 1);
 	}
 
-	this->train_batchs_.at(train_batch_index) = train_batch_img;
+	if (ori_train_batchs_.size() <= train_batch_index)
+	{
+		ori_train_batchs_.resize(train_batch_index + 1);
+	}
+
+	train_batchs_.at(train_batch_index) = train_batch_img;
+	ori_train_batchs_.at(train_batch_index) = train_batch_label_img;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,9 +195,11 @@ void CCifar10::load_test_batch_by_index(unsigned int test_batch_index)
 		}
 	}
 
-	delete[] lb_imgs;
 	std::shared_ptr<struct S_Cifar10_img> test_batch_img(imgs, [](struct S_Cifar10_img* p){delete[] p;});
+	std::shared_ptr<struct S_Cifar10_label_img> test_batch_label_img(lb_imgs, [](struct S_Cifar10_label_img* p){delete[] p;});
+
 	test_batchs_.push_back(test_batch_img);
+	ori_test_batchs_.push_back(test_batch_label_img);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -206,6 +216,11 @@ void CCifar10::load_test_batchs(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param img
+ * @param img_size
+ */
 void CCifar10::show_img(uint8_t* img, size_t img_size)
 {
 	const int num = 1;
@@ -223,8 +238,25 @@ void CCifar10::show_img(uint8_t* img, size_t img_size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void CCifar10::show_img(unsigned int batch_index, unsigned int img_index)
+/**
+ *
+ * @param batch_index
+ * @param img_index
+ */
+void CCifar10::show_train_img(unsigned int batch_index, unsigned int img_index)
 {
 	uint8_t* img = this->get_train_img(batch_index, img_index);
+	show_img(img, 3072);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param batch_index
+ * @param img_index
+ */
+void CCifar10::show_test_img(unsigned int img_index)
+{
+	uint8_t* img = this->get_test_img(img_index);
 	show_img(img, 3072);
 }
