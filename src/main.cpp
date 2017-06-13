@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 	cifar10.load_train_batchs();
 	cifar10.load_test_batchs();
 
-	cifar10.show_img(2, 1000);
+	cifar10.show_img((unsigned int)3, (unsigned int)3000);
 
 	return 0;
 
