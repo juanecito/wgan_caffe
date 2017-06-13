@@ -132,15 +132,34 @@ int main(int argc, char **argv)
 	auto input_blob = net_d.blob_by_name("data");
 	input_blob->set_cpu_data((float*)cifar10.get_ori_train_img(0, 0));
 
+	std::cout << "channels: " << input_blob->channels() << std::endl;
+	std::cout << "height: " << input_blob->height() << std::endl;
+	std::cout << "width: " << input_blob->width() << std::endl;
+	std::cout << "count: " << input_blob->count() << std::endl;
+
 	float loss = 0.0;
-	for (unsigned int uiI = 0; uiI < 1000; uiI++)
+	for (unsigned int uiI = 0; uiI < 100000; uiI++)
 	{
-		net_d.Forward(&loss);
-		input_blob->set_cpu_data((float*)cifar10.get_ori_train_img(0, uiI));
+		loss = net_d.ForwardBackward();
 		net_d.Update();
 	}
 
 	std::cout << "loss " << loss << std::endl;
+
+	auto output_blob = net_d.blob_by_name("prob");
+
+	std::cout << "channels: " << output_blob->channels() << std::endl;
+	std::cout << "height: " << output_blob->height() << std::endl;
+	std::cout << "width: " << output_blob->width() << std::endl;
+	std::cout << "count: " << output_blob->count() << std::endl;
+
+	std::cout << "values: " << std::endl;
+
+	for (unsigned int uiI = 0; uiI < output_blob->channels(); uiI++)
+	{
+		std::cout << "value: " << output_blob->data_at(1, uiI, 1, 1) << std::endl;
+	}
+	std::cout << std::endl;
 
 #if 0
 
