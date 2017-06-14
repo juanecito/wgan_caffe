@@ -76,7 +76,10 @@ CCifar10::~CCifar10()
  *
  * @param train_batch_index
  */
-void CCifar10::load_train_batch_by_index(unsigned int train_batch_index)
+void CCifar10::load_train_batch_by_index(unsigned int train_batch_index,
+										struct S_Cifar10_label_img* lb_imgs,
+										S_Cifar10_img_rgb<uint8_t>* imgs,
+										uint8_t* labels)
 {
 	char str_batch1_name[FILENAME_MAX] = {0};
 	snprintf(str_batch1_name, FILENAME_MAX - 1, CCifar10::train_batch_pattern_name_s.c_str(), train_batch_index + 1);
@@ -84,12 +87,6 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index)
 	std::fstream batch_file;
 	batch_file.open(path_ + std::string("/") + batch_name, std::ios::in | std::ios::binary);
 
-	//Each image is a vector 32x32x3 of unsigned char data
-	struct S_Cifar10_label_img* lb_imgs = new struct S_Cifar10_label_img [CCifar10::cifar10_imgs_batch_s];
-	memset(lb_imgs, 0, sizeof(struct S_Cifar10_label_img) * CCifar10::cifar10_imgs_batch_s);
-
-	uint8_t labels[10000];
-	memset(labels, 0, sizeof(uint8_t) * 10000);
 
 	if (batch_file.is_open())
 	{
@@ -101,10 +98,6 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index)
 	}
 	batch_file.close();
 
-
-	struct S_Cifar10_img_rgb<uint8_t>* imgs = new struct S_Cifar10_img [CCifar10::cifar10_imgs_batch_s];
-	memset(imgs, 0, sizeof(struct S_Cifar10_img_rgb<uint8_t>) * CCifar10::cifar10_imgs_batch_s);
-
 	/*
     data -- a 10000x3072 numpy array of uint8s. Each row of the array stores a 32x32 colour image.
     The first 1024 entries contain the red channel values, the next 1024 the green,
@@ -119,26 +112,8 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index)
 			imgs[uiI].rgb_[uiJ * 3 + 1] = lb_imgs[uiI]. green_channel_[uiJ];
 			imgs[uiI].rgb_[uiJ * 3 + 2] = lb_imgs[uiI]. blue_channel_[uiJ];
 		}
+		labels[uiI] = lb_imgs[uiI].label_;
 	}
-
-	std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > train_batch_img(imgs,
-								[](struct S_Cifar10_img* p){delete[] p;});
-	std::shared_ptr<struct S_Cifar10_label_img> train_batch_label_img(lb_imgs,
-								[](struct S_Cifar10_label_img* p){delete[] p;});
-
-	if (train_batchs_.size() <= train_batch_index)
-	{
-		train_batchs_.resize(train_batch_index + 1);
-	}
-
-	if (ori_train_batchs_.size() <= train_batch_index)
-	{
-		ori_train_batchs_.resize(train_batch_index + 1);
-	}
-
-	train_batchs_.at(train_batch_index) = train_batch_img;
-	ori_train_batchs_.at(train_batch_index) = train_batch_label_img;
-	train_labels_.at(train_batch_index) = labels;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -148,9 +123,35 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index)
  */
 void CCifar10::load_train_batchs(void)
 {
+	struct S_Cifar10_label_img* lb_imgs = nullptr;
+	struct S_Cifar10_img_rgb<uint8_t>* imgs = nullptr;
+	uint8_t* labels = nullptr;
+
+	memset(labels, 0, sizeof(uint8_t) * 10000);
+	//Each image is a vector 32x32x3 of unsigned char data
+
 	for (unsigned int uiI = 0; uiI < CCifar10::cifar10_train_batch_s; uiI++)
 	{
-		load_train_batch_by_index(uiI);
+		lb_imgs = new struct S_Cifar10_label_img [CCifar10::cifar10_imgs_batch_s];
+		memset(lb_imgs, 0, sizeof(struct S_Cifar10_label_img) * CCifar10::cifar10_imgs_batch_s);
+
+		imgs = new struct S_Cifar10_img_rgb<uint8_t> [CCifar10::cifar10_imgs_batch_s];
+		memset(imgs, 0, sizeof(struct S_Cifar10_img_rgb<uint8_t>) * CCifar10::cifar10_imgs_batch_s);
+
+		labels = new uint8_t [10000];
+		memset(labels, 0, sizeof(uint8_t) * 10000);
+
+		load_train_batch_by_index(uiI, lb_imgs, imgs, labels);
+
+		std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > train_batch_img(imgs,
+									[](struct S_Cifar10_img_rgb<uint8_t>* p){delete[] p;});
+		std::shared_ptr<struct S_Cifar10_label_img> train_batch_label_img(lb_imgs,
+									[](struct S_Cifar10_label_img* p){delete[] p;});
+		std::shared_ptr<uint8_t> train_label(labels, [](uint8_t* p){delete[] p;});
+
+		train_batchs_.push_back(train_batch_img);
+		ori_train_batchs_.push_back(train_batch_label_img);
+		train_labels_.push_back(train_label);
 	}
 }
 
@@ -159,17 +160,16 @@ void CCifar10::load_train_batchs(void)
  *
  * @param train_batch_index
  */
-void CCifar10::load_test_batch_by_index(unsigned int test_batch_index)
+void CCifar10::load_test_batch_by_index(unsigned int test_batch_index,
+										struct S_Cifar10_label_img* lb_imgs,
+										S_Cifar10_img_rgb<uint8_t>* imgs,
+										uint8_t* labels)
 {
 	char str_batch1_name[FILENAME_MAX] = {0};
 	snprintf(str_batch1_name, FILENAME_MAX - 1, CCifar10::test_batch_pattern_name_s.c_str());
 	std::string batch_name = std::string(str_batch1_name);
 	std::fstream batch_file;
 	batch_file.open(path_ + std::string("/") + batch_name, std::ios::in | std::ios::binary);
-
-	//Each image is a vector 32x32x3 of unsigned char data
-	struct S_Cifar10_label_img* lb_imgs = new struct S_Cifar10_label_img [CCifar10::cifar10_imgs_batch_s];
-	memset(lb_imgs, 0, sizeof(struct S_Cifar10_label_img) * CCifar10::cifar10_imgs_batch_s);
 
 	if (batch_file.is_open())
 	{
@@ -181,8 +181,7 @@ void CCifar10::load_test_batch_by_index(unsigned int test_batch_index)
 	}
 	batch_file.close();
 
-	struct S_Cifar10_img_rgb<uint8_t>* imgs = new struct S_Cifar10_img [CCifar10::cifar10_imgs_batch_s];
-	memset(imgs, 0, sizeof(struct S_Cifar10_img_rgb<uint8_t>) * CCifar10::cifar10_imgs_batch_s);
+
 
 	/*
     data -- a 10000x3072 numpy array of uint8s. Each row of the array stores a 32x32 colour image.
@@ -198,13 +197,8 @@ void CCifar10::load_test_batch_by_index(unsigned int test_batch_index)
 			imgs[uiI].rgb_[uiJ * 3 + 1] = lb_imgs[uiI]. green_channel_[uiJ];
 			imgs[uiI].rgb_[uiJ * 3 + 2] = lb_imgs[uiI]. blue_channel_[uiJ];
 		}
+		labels[uiI] = lb_imgs[uiI].label_;
 	}
-
-	std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > test_batch_img(imgs, [](struct S_Cifar10_img* p){delete[] p;});
-	std::shared_ptr<struct S_Cifar10_label_img> test_batch_label_img(lb_imgs, [](struct S_Cifar10_label_img* p){delete[] p;});
-
-	test_batchs_.push_back(test_batch_img);
-	ori_test_batchs_.push_back(test_batch_label_img);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -214,9 +208,31 @@ void CCifar10::load_test_batch_by_index(unsigned int test_batch_index)
  */
 void CCifar10::load_test_batchs(void)
 {
+	//Each image is a vector 32x32x3 of unsigned char data
+	struct S_Cifar10_label_img* lb_imgs = nullptr;
+	struct S_Cifar10_img_rgb<uint8_t>* imgs = nullptr;
+	uint8_t* labels = nullptr;
+
 	for (unsigned int uiI = 0; uiI < CCifar10::cifar10_test_batch_s; uiI++)
 	{
-		load_test_batch_by_index(uiI);
+		lb_imgs = new struct S_Cifar10_label_img [CCifar10::cifar10_imgs_batch_s];
+		memset(lb_imgs, 0, sizeof(struct S_Cifar10_label_img) * CCifar10::cifar10_imgs_batch_s);
+
+		imgs = new struct S_Cifar10_img_rgb<uint8_t> [CCifar10::cifar10_imgs_batch_s];
+		memset(imgs, 0, sizeof(struct S_Cifar10_img_rgb<uint8_t>) * CCifar10::cifar10_imgs_batch_s);
+
+		labels = new uint8_t [10000];
+		memset(labels, 0, sizeof(uint8_t) * 10000);
+
+		load_test_batch_by_index(uiI, lb_imgs, imgs, labels);
+
+		std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > test_batch_img(imgs, [](struct S_Cifar10_img_rgb<uint8_t>* p){delete[] p;});
+		std::shared_ptr<struct S_Cifar10_label_img> test_batch_label_img(lb_imgs, [](struct S_Cifar10_label_img* p){delete[] p;});
+		std::shared_ptr<uint8_t> test_label(labels, [](uint8_t* p){delete[] p;});
+
+		test_batchs_.push_back(test_batch_img);
+		ori_test_batchs_.push_back(test_batch_label_img);
+		train_labels_.push_back(test_label);
 	}
 }
 

@@ -36,11 +36,17 @@ class CCifar10
 
 		void set_path(const std::string& path) {path_ = path;}
 
-		void load_train_batch_by_index(unsigned int train_batch_index);
+		void load_train_batch_by_index(unsigned int train_batch_index,
+										struct S_Cifar10_label_img* lb_imgs,
+										S_Cifar10_img_rgb<uint8_t>* img,
+										uint8_t* labels);
 
 		void load_train_batchs(void);
 
-		void load_test_batch_by_index(unsigned int train_batch_index);
+		void load_test_batch_by_index(unsigned int train_batch_index,
+										struct S_Cifar10_label_img* lb_imgs,
+										S_Cifar10_img_rgb<uint8_t>* img,
+										uint8_t* labels);
 
 		void load_test_batchs(void);
 
@@ -85,8 +91,8 @@ class CCifar10
 
 		std::string path_;
 
-		std::vector<uint8_t[10000]> train_labels_;
-		std::vector<uint8_t[10000]> test_labels_;
+		std::vector<std::shared_ptr<uint8_t> > train_labels_;
+		std::vector<std::shared_ptr<uint8_t> > test_labels_;
 
 		std::vector<std::shared_ptr<struct S_Cifar10_label_img> > ori_train_batchs_;
 		std::vector<std::shared_ptr<struct S_Cifar10_label_img> > ori_test_batchs_;
