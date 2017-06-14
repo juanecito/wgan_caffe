@@ -24,7 +24,10 @@
 #include <random>
 #include <memory>
 #include <algorithm>
+
 #include <caffe/caffe.hpp>
+#include <caffe/layers/memory_data_layer.hpp>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -131,6 +134,28 @@ int main(int argc, char **argv)
 
 	auto input_blob = net_d.blob_by_name("data");
 	input_blob->set_cpu_data((float*)cifar10.get_ori_train_img(0, 0));
+
+
+
+
+
+    caffe::SolverParameter solver_param;
+    caffe::ReadSolverParamsFromTextFileOrDie("./solver.prototxt", &solver_param);
+
+    boost::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+    caffe::MemoryDataLayer<float> *dataLayer_trainnet = (caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("inputdata").get());
+    caffe::MemoryDataLayer<float> *dataLayer_testnet_ = (caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("test_inputdata").get());
+
+    float testab[] = {0, 0, 0, 1, 1, 0, 1, 1};
+    float testc[] = {0, 1, 1, 0};
+
+    dataLayer_testnet_->Reset(testab, testc, 4);
+
+    dataLayer_trainnet->Reset(data, label, 25600);
+
+
+
+
 
 	std::cout << "channels: " << input_blob->channels() << std::endl;
 	std::cout << "height: " << input_blob->height() << std::endl;
