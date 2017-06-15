@@ -143,17 +143,28 @@ int main(int argc, char **argv)
 	//cifar10.show_train_img(3, 1500);
 	//--------------------------------------------------------------------------
 
-	//caffe::Caffe::set_mode(caffe::Caffe::GPU);
-	caffe::Caffe::set_mode(caffe::Caffe::CPU);
+	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+	//caffe::Caffe::set_mode(caffe::Caffe::CPU);
 
-	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
-	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
+    caffe::SolverParameter solver_param;
+    caffe::ReadSolverParamsFromTextFileOrDie("./models/solver.prototxt", &solver_param);
+    std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
-    caffe::MemoryDataLayer<float> *dataLayer_trainnet = (caffe::MemoryDataLayer<float> *) (net_d.layer_by_name("data").get());
+//	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
+//	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
 
-    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
+    caffe::MemoryDataLayer<float> *dataLayer_trainnet = (caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("data").get());
+    caffe::MemoryDataLayer<float> *dataLayer_testnet = (caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
 
-    auto input_blob = net_d.blob_by_name("data");
+//    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
+//    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);
+
+    dataLayer_trainnet->Reset(train_imgs, train_labels, 10);
+    dataLayer_testnet->Reset(test_imgs, test_labels, 10);
+
+    auto input_blob = solver->net()->blob_by_name("data");
+
+    solver->Solve();
 
 	/*
     caffe::SolverParameter solver_param;
@@ -182,13 +193,13 @@ int main(int argc, char **argv)
 	float loss = 0.0;
 	for (unsigned int uiI = 0; uiI < 100000; uiI++)
 	{
-		loss = net_d.ForwardBackward();
-		net_d.Update();
+		loss = solver->net()->ForwardBackward();
+		solver->net()->Update();
 	}
 
 	std::cout << "loss " << loss << std::endl;
 
-	auto output_blob = net_d.blob_by_name("prob");
+	auto output_blob = solver->net()->blob_by_name("prob");
 
 	std::cout << "channels: " << output_blob->channels() << std::endl;
 	std::cout << "height: " << output_blob->height() << std::endl;
