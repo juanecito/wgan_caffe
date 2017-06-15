@@ -24,6 +24,7 @@
 #include <random>
 #include <memory>
 #include <algorithm>
+#include <iostream>
 
 #include <caffe/caffe.hpp>
 #include <caffe/layers/memory_data_layer.hpp>
@@ -115,7 +116,24 @@ void test_1(void)
 	cv::waitKey();
 }
 
+template <typename T>
+void desc_network(caffe::Net<T>& net)
+{
+	std::cout << "Network name: " << net.name() << std::endl;
+	const std::vector<std::string>& vector_blob_names = net.blob_names();
 
+	for (const auto& it_blob_names : vector_blob_names)
+	{
+		auto boost_ptr_blob = net.blob_by_name(it_blob_names);
+		caffe::Blob<T>* blob = boost_ptr_blob.get();
+		std::cout << it_blob_names << " -> " <<
+					blob->num() << " " <<
+					blob->channels() << " " <<
+					blob->height() << " " <<
+					blob->width() << " " <<
+					blob->count() << std::endl;
+	}
+}
 
 int main(int argc, char **argv)
 {
@@ -164,26 +182,11 @@ int main(int argc, char **argv)
 
     auto input_blob = solver->net()->blob_by_name("data");
 
+    desc_network(*(solver->net().get()));
+
+    return 0;
+
     solver->Solve();
-
-	/*
-    caffe::SolverParameter solver_param;
-    caffe::ReadSolverParamsFromTextFileOrDie("./solver.prototxt", &solver_param);
-
-    boost::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
-    caffe::MemoryDataLayer<float> *dataLayer_trainnet = (caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("inputdata").get());
-    caffe::MemoryDataLayer<float> *dataLayer_testnet_ = (caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("test_inputdata").get());
-
-    float testab[] = {0, 0, 0, 1, 1, 0, 1, 1};
-    float testc[] = {0, 1, 1, 0};
-
-    dataLayer_testnet_->Reset(testab, testc, 4);
-
-    dataLayer_trainnet->Reset(data, label, 25600);
-	*/
-
-
-
 
 	std::cout << "channels: " << input_blob->channels() << std::endl;
 	std::cout << "height: " << input_blob->height() << std::endl;
