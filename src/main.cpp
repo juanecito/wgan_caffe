@@ -119,24 +119,41 @@ void test_1(void)
 
 int main(int argc, char **argv)
 {
-
-
 	CCifar10 cifar10;
 	cifar10.set_path("./bin/cifar-10-batches-bin");
 
 	cifar10.load_train_batchs();
 	cifar10.load_test_batchs();
 
-	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+	//--------------------------------------------------------------------------
+	// Get adecuate data from cifar10
+	float* train_labels = nullptr;
+	cifar10.get_train_labels(0, &train_labels);
+
+	float* test_labels = nullptr;
+	cifar10.get_test_labels(&test_labels);
+
+	float* train_imgs = nullptr;
+	cifar10.get_train_batch_img(0, &train_imgs);
+
+	float* test_imgs = nullptr;
+	cifar10.get_test_batch_img(&test_imgs);
+	//--------------------------------------------------------------------------
+	// Test RGB image from cifar10
+	//cifar10.show_train_img(3, 1500);
+	//--------------------------------------------------------------------------
+
+	//caffe::Caffe::set_mode(caffe::Caffe::GPU);
+	caffe::Caffe::set_mode(caffe::Caffe::CPU);
 
 	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
 	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
 
-	auto input_blob = net_d.blob_by_name("data");
-	input_blob->set_cpu_data((float*)cifar10.get_ori_train_img(0, 0));
+    caffe::MemoryDataLayer<float> *dataLayer_trainnet = (caffe::MemoryDataLayer<float> *) (net_d.layer_by_name("data").get());
 
+    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
 
-
+    auto input_blob = net_d.blob_by_name("data");
 
 	/*
     caffe::SolverParameter solver_param;

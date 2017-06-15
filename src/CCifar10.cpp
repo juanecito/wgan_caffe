@@ -127,9 +127,6 @@ void CCifar10::load_train_batchs(void)
 	struct S_Cifar10_img_rgb<uint8_t>* imgs = nullptr;
 	uint8_t* labels = nullptr;
 
-	memset(labels, 0, sizeof(uint8_t) * 10000);
-	//Each image is a vector 32x32x3 of unsigned char data
-
 	for (unsigned int uiI = 0; uiI < CCifar10::cifar10_train_batch_s; uiI++)
 	{
 		lb_imgs = new struct S_Cifar10_label_img [CCifar10::cifar10_imgs_batch_s];
@@ -249,6 +246,8 @@ void CCifar10::show_img(uint8_t* img, size_t img_size)
 	const int height = 32;
 	const int width = 32;
 
+	// CV_8UC3 -> RGB
+
 	cv::Mat canvas2(height, width, CV_8UC3 , img);
 	cv::Mat canvas3(64, 64, CV_8UC3);
 	cv::Size size(64, 64);//the dst image size,e.g.100x100
@@ -266,7 +265,7 @@ void CCifar10::show_img(uint8_t* img, size_t img_size)
  */
 void CCifar10::show_train_img(unsigned int batch_index, unsigned int img_index)
 {
-	uint8_t* img = this->get_train_img(batch_index, img_index);
+	uint8_t* img = this->get_train_img_rgb(batch_index, img_index);
 	show_img(img, 3072);
 }
 
@@ -278,6 +277,6 @@ void CCifar10::show_train_img(unsigned int batch_index, unsigned int img_index)
  */
 void CCifar10::show_test_img(unsigned int img_index)
 {
-	uint8_t* img = this->get_test_img(img_index);
+	uint8_t* img = this->get_test_img_rgb(img_index);
 	show_img(img, 3072);
 }
