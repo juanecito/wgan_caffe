@@ -72,6 +72,18 @@ class CCifar10
 		void load_test_batchs(void);
 
 		//----------------------------------------------------------------------
+		template <typename T>
+		size_t get_batch_imgs_size(void) const
+		{
+			return sizeof(struct S_Cifar10_img<T>) * cifar10_imgs_batch_s;
+		}
+
+		template <typename T>
+		size_t get_batch_labels_size(void) const
+		{
+			return sizeof(T) * cifar10_imgs_batch_s;
+		}
+		//----------------------------------------------------------------------
 		// Get RGB images
 		/**
 		 *
@@ -103,44 +115,26 @@ class CCifar10
 		 * @return
 		 */
 		template <typename T>
-		void get_train_batch_img(unsigned int batch_index, T** imgs)
-		{
-			struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [cifar10_imgs_batch_s];
-			struct S_Cifar10_label_img* ori_imgs = ori_train_batchs_.at(batch_index).get();
+		void get_train_batch_img(unsigned int batch_index, T** imgs);
 
-			for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
-			{
-				for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
-				{
-					tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
-					tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
-					tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
-				}
-			}
-			*imgs = (T*)(ori_imgs);
-		}
+		template <typename T>
+		unsigned int get_all_train_batch_img(T** imgs);
+
+		template <typename T>
+		unsigned int get_all_train_batch_img_rgb(T** imgs);
 
 		/**
 		 *
 		 * @return
 		 */
 		template <typename T>
-		void get_test_batch_img(T** imgs)
-		{
-			struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [cifar10_imgs_batch_s];
-			struct S_Cifar10_label_img* ori_imgs = ori_test_batchs_.at(0).get();
+		void get_test_batch_img(T** imgs);
 
-			for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
-			{
-				for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
-				{
-					tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
-					tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
-					tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
-				}
-			}
-			*imgs = (T*)(ori_imgs);
-		}
+		template <typename T>
+		unsigned int get_all_test_batch_img(T** imgs);
+
+		template <typename T>
+		unsigned int get_all_test_batch_img_rgb(T** imgs);
 		//----------------------------------------------------------------------
 		// Get images with label, as we can find in cifar10 files
 		/**
@@ -172,26 +166,15 @@ class CCifar10
 		}
 
 		template <typename T>
-		void get_train_labels(unsigned int batch_index, T** t_labels)
-		{
-			*t_labels = new T [cifar10_imgs_batch_s];
-			uint8_t* train_label = this->train_labels_.at(batch_index).get();
-			for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
-			{
-				(*t_labels)[uiI] = train_label[uiI];
-			}
-		}
+		void get_train_labels(unsigned int batch_index, T** t_labels);
 
 		template <typename T>
-		void get_test_labels(T** t_labels)
-		{
-			*t_labels = new T [cifar10_imgs_batch_s];
-			uint8_t* test_label = this->train_labels_.at(0).get();
-			for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
-			{
-				(*t_labels)[uiI] = test_label[uiI];
-			}
-		}
+		unsigned int get_all_train_labels(T** t_labels);
+
+		template <typename T>
+		void get_test_labels(T** t_labels);
+		template <typename T>
+		unsigned int get_all_test_labels(T** t_labels);
 		//----------------------------------------------------------------------
 		/**
 		 *
@@ -237,5 +220,228 @@ class CCifar10
 		std::vector<std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > > train_batchs_;
 		std::vector<std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > > test_batchs_;
 };
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
+{
+	struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [cifar10_imgs_batch_s];
+	struct S_Cifar10_label_img* ori_imgs = ori_train_batchs_.at(batch_index).get();
+
+	for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+	{
+		for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+		{
+			tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
+			tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
+			tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+		}
+	}
+	*imgs = (T*)(ori_imgs);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_train_batch_img(T** imgs)
+{
+	unsigned int count = cifar10_imgs_batch_s * ori_train_batchs_.size();
+
+	struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [count];
+
+	unsigned int batch_index = 0;
+	for (auto it : ori_train_batchs_)
+	{
+		struct S_Cifar10_label_img* ori_imgs = it.get();
+
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+			{
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+			}
+		}
+		batch_index++;
+	}
+
+	*imgs = (T*)(tmp_img);
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_train_batch_img_rgb(T** imgs)
+{
+	unsigned int count = cifar10_imgs_batch_s * ori_train_batchs_.size();
+	struct S_Cifar10_img_rgb<T>* tmp_img = new struct S_Cifar10_img_rgb<T> [count];
+
+	unsigned int batch_index = 0;
+	for (auto it : ori_train_batchs_)
+	{
+		struct S_Cifar10_label_img* ori_imgs = it.get();
+
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+			{
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3] = ori_imgs[uiJ].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 1] = ori_imgs[uiJ].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 2] = ori_imgs[uiJ].blue_channel_[uiJ];
+			}
+		}
+		batch_index++;
+	}
+
+	*imgs = (T*)(tmp_img);
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void CCifar10::get_test_batch_img(T** imgs)
+{
+	struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [cifar10_imgs_batch_s];
+	struct S_Cifar10_label_img* ori_imgs = ori_test_batchs_.at(0).get();
+
+	for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+	{
+		for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+		{
+			tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
+			tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
+			tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+		}
+	}
+	*imgs = (T*)(ori_imgs);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_test_batch_img(T** imgs)
+{
+	unsigned int count = cifar10_imgs_batch_s * ori_test_batchs_.size();
+
+	struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [count];
+
+	unsigned int batch_index = 0;
+	for (auto it : ori_test_batchs_)
+	{
+		struct S_Cifar10_label_img* ori_imgs = it.get();
+
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+			{
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+			}
+		}
+		batch_index++;
+	}
+
+	*imgs = (T*)(tmp_img);
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_test_batch_img_rgb(T** imgs)
+{
+	unsigned int count = cifar10_imgs_batch_s * ori_test_batchs_.size();
+	struct S_Cifar10_img_rgb<T>* tmp_img = new struct S_Cifar10_img_rgb<T> [count];
+
+	unsigned int batch_index = 0;
+	for (auto it : ori_test_batchs_)
+	{
+		struct S_Cifar10_label_img* ori_imgs = it.get();
+
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+			{
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3] = ori_imgs[uiJ].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 1] = ori_imgs[uiJ].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 2] = ori_imgs[uiJ].blue_channel_[uiJ];
+			}
+		}
+		batch_index++;
+	}
+
+	*imgs = (T*)(tmp_img);
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void CCifar10::get_train_labels(unsigned int batch_index, T** t_labels)
+{
+	*t_labels = new T [cifar10_imgs_batch_s];
+	uint8_t* train_label = this->train_labels_.at(batch_index).get();
+	for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+	{
+		(*t_labels)[uiI] = train_label[uiI];
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void CCifar10::get_test_labels(T** t_labels)
+{
+	*t_labels = new T [cifar10_imgs_batch_s];
+	uint8_t* test_label = this->train_labels_.at(0).get();
+	for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+	{
+		(*t_labels)[uiI] = test_label[uiI];
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_train_labels(T** t_labels)
+{
+	unsigned int count = cifar10_imgs_batch_s * train_labels_.size();
+	*t_labels = new T [count];
+
+	unsigned int batch_index = 0;
+	for (auto it : train_labels_)
+	{
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			(*t_labels)[batch_index * cifar10_imgs_batch_s + uiI] = it.get()[uiI];
+		}
+		batch_index++;
+	}
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_test_labels(T** t_labels)
+{
+	unsigned int count = cifar10_imgs_batch_s * test_labels_.size();
+	*t_labels = new T [count];
+
+	unsigned int batch_index = 0;
+	for (auto it : test_labels_)
+	{
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			(*t_labels)[batch_index * cifar10_imgs_batch_s + uiI] = it.get()[uiI];
+		}
+		batch_index++;
+	}
+
+	return count;
+}
+
 
 #endif /* SRC_CCIFAR10_HPP_ */

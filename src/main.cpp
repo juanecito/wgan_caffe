@@ -214,18 +214,19 @@ int main(int argc, char **argv)
 	cifar10.load_test_batchs();
 
 	//--------------------------------------------------------------------------
-	// Get adecuate data from cifar10
+	// Get adequate data from cifar10
+
 	float* train_labels = nullptr;
-	cifar10.get_train_labels(0, &train_labels);
+	unsigned int count_train = cifar10.get_all_train_labels(&train_labels);
 
 	float* test_labels = nullptr;
-	cifar10.get_test_labels(&test_labels);
+	unsigned int count_test = cifar10.get_all_test_labels(&test_labels);
 
 	float* train_imgs = nullptr;
-	cifar10.get_train_batch_img(0, &train_imgs);
+	count_train = cifar10.get_all_train_batch_img_rgb(&train_imgs);
 
 	float* test_imgs = nullptr;
-	cifar10.get_test_batch_img(&test_imgs);
+	count_test = cifar10.get_all_test_batch_img_rgb(&test_imgs);
 	//--------------------------------------------------------------------------
 	// Test RGB image from cifar10
 	//cifar10.show_train_img(3, 1500);
@@ -247,13 +248,13 @@ int main(int argc, char **argv)
 //    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
 //    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);
 
-    dataLayer_trainnet->Reset(train_imgs, train_labels, 10000);
-    dataLayer_testnet->Reset(test_imgs, test_labels, 10000);
+    dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
+    dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
 
     auto input_blob = solver->net()->blob_by_name("data");
 
     desc_network(*(solver->net().get()));
-    return 0;
+
     solver->Solve();
 
 	std::cout << "channels: " << input_blob->channels() << std::endl;

@@ -48,9 +48,6 @@ const std::string CCifar10::test_batch_pattern_name_s = "test_batch.bin";
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- */
 CCifar10::CCifar10(): is_test_loaded_(false), is_train_loaded_(false)
 {
 	test_batchs_.clear();
@@ -63,19 +60,12 @@ CCifar10::CCifar10(): is_test_loaded_(false), is_train_loaded_(false)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- */
 CCifar10::~CCifar10()
 {
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param train_batch_index
- */
 void CCifar10::load_train_batch_by_index(unsigned int train_batch_index,
 										struct S_Cifar10_label_img* lb_imgs,
 										S_Cifar10_img_rgb<uint8_t>* imgs,
@@ -86,7 +76,6 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index,
 	std::string batch_name = std::string(str_batch1_name);
 	std::fstream batch_file;
 	batch_file.open(path_ + std::string("/") + batch_name, std::ios::in | std::ios::binary);
-
 
 	if (batch_file.is_open())
 	{
@@ -117,10 +106,6 @@ void CCifar10::load_train_batch_by_index(unsigned int train_batch_index,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param pattern
- */
 void CCifar10::load_train_batchs(void)
 {
 	struct S_Cifar10_label_img* lb_imgs = nullptr;
@@ -153,10 +138,6 @@ void CCifar10::load_train_batchs(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param train_batch_index
- */
 void CCifar10::load_test_batch_by_index(unsigned int test_batch_index,
 										struct S_Cifar10_label_img* lb_imgs,
 										S_Cifar10_img_rgb<uint8_t>* imgs,
@@ -199,10 +180,6 @@ void CCifar10::load_test_batch_by_index(unsigned int test_batch_index,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param pattern
- */
 void CCifar10::load_test_batchs(void)
 {
 	//Each image is a vector 32x32x3 of unsigned char data
@@ -229,16 +206,11 @@ void CCifar10::load_test_batchs(void)
 
 		test_batchs_.push_back(test_batch_img);
 		ori_test_batchs_.push_back(test_batch_label_img);
-		train_labels_.push_back(test_label);
+		test_labels_.push_back(test_label);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param img
- * @param img_size
- */
 void CCifar10::show_img(uint8_t* img, size_t img_size)
 {
 	const int num = 1;
@@ -258,11 +230,6 @@ void CCifar10::show_img(uint8_t* img, size_t img_size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param batch_index
- * @param img_index
- */
 void CCifar10::show_train_img(unsigned int batch_index, unsigned int img_index)
 {
 	uint8_t* img = this->get_train_img_rgb(batch_index, img_index);
@@ -270,13 +237,10 @@ void CCifar10::show_train_img(unsigned int batch_index, unsigned int img_index)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/**
- *
- * @param batch_index
- * @param img_index
- */
 void CCifar10::show_test_img(unsigned int img_index)
 {
 	uint8_t* img = this->get_test_img_rgb(img_index);
 	show_img(img, 3072);
 }
+
+
