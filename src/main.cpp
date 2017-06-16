@@ -205,6 +205,59 @@ void desc_network(caffe::Net<T>& net)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void verify_img(caffe::Net<T>* net, CCifar10* cifar10)
+{
+	T* test_imgs = nullptr;
+	unsigned int count_test = cifar10->get_all_test_batch_img_rgb(&test_imgs);
+
+	T* test_labels = nullptr;
+	count_test = cifar10->get_all_test_labels(&test_labels);
+
+	S_Cifar10_img_rgb<T>* imgs_rgb_str = (S_Cifar10_img_rgb<T>*)test_imgs;
+
+//    caffe::MemoryDataLayer<T> *dataLayer_trainnet =
+//    	(caffe::MemoryDataLayer<T> *) (net->layer_by_name("data").get());
+//	dataLayer_trainnet->Reset(imgs_rgb_str[1000].rgb_, (T*)(test_labels + 1000), 1);
+
+	const boost::shared_ptr<caffe::Blob<T> > sp_input = net->blob_by_name("data");
+
+	caffe::Blob<T>* input = sp_input.get();
+	input->Reshape({1, 3, 32, 32});
+	T *data = input->mutable_cpu_data();
+	const int n = input->count();
+
+	std::cout << "n: " << n << std::endl;
+
+	cifar10->show_test_img(1000);
+	auto it = CCifar10::cifar10_labels.find(test_labels[1000]);
+	std::cout << "label: " << it->second << std::endl;
+
+	memcpy(data, imgs_rgb_str[1000].rgb_, 3072 * sizeof(T));
+
+	net->Forward();
+
+	const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = net->blob_by_name("ip1");
+	caffe::Blob<T>* blob = sh_ptr_blob.get();
+
+	T* data_result = blob->mutable_cpu_data();
+	unsigned int blob_count = blob->count();
+	unsigned int blob_num = blob->num();
+	std::string shape_string = blob->shape_string();
+
+	std::cout << "blob_count: " << blob_count << std::endl;
+	std::cout << "blob_num: " << blob_num << std::endl;
+	std::cout << "shape_string: " << blob->shape_string() << std::endl;
+
+	for (unsigned int uiI = 0; uiI < blob_count; uiI++)
+	{
+		std::cout << data_result[uiI] << std::endl;
+	}
+
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
 	CCifar10 cifar10;
@@ -239,11 +292,30 @@ int main(int argc, char **argv)
     caffe::ReadSolverParamsFromTextFileOrDie("./models/solver.prototxt", &solver_param);
     std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
+    if (argc == 3 && strcmp(argv[1], "--test_file") == 0 )
+    {
+    	std::cout << "trained network file: " << argv[2] << std::endl;
+        caffe::Net<float> net("./models/d_1_test.prototxt", caffe::Phase::TEST);
+    	net.CopyTrainedLayersFromBinaryProto(argv[2]);
+
+        verify_img(&net, &cifar10);
+
+        return 0;
+    }
+
 //	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
 //	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
 
-    caffe::MemoryDataLayer<float> *dataLayer_trainnet = (caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("data").get());
-    caffe::MemoryDataLayer<float> *dataLayer_testnet = (caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
+    caffe::MemoryDataLayer<float> *dataLayer_trainnet =
+    	(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("data").get());
+    caffe::MemoryDataLayer<float> *dataLayer_testnet =
+    	(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
+
+    if (argc == 3 && strcmp(argv[1], "--train_file") == 0 )
+    {
+    	std::cout << "trained network file: " << argv[2] << std::endl;
+        solver->net()->CopyTrainedLayersFromBinaryProto(argv[2]);
+    }
 
 //    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
 //    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);

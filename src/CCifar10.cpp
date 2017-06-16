@@ -32,16 +32,16 @@
 #include "CCifar10.hpp"
 
 const std::map<uint8_t, std::string> CCifar10::cifar10_labels =
-		{	{1, "airplane"},
-			{2, "automobile"},
-			{3, "bird"},
-			{4, "cat"},
-			{5, "deer"},
-			{6, "dog"},
-			{7, "frog"},
-			{8, "horse"},
-			{9, "ship"},
-			{10, "truck"} };
+		{	{0, "airplane"},
+			{1, "automobile"},
+			{2, "bird"},
+			{3, "cat"},
+			{4, "deer"},
+			{5, "dog"},
+			{6, "frog"},
+			{7, "horse"},
+			{8, "ship"},
+			{9, "truck"} };
 
 const std::string CCifar10::train_batch_pattern_name_s = "data_batch_%u.bin";
 const std::string CCifar10::test_batch_pattern_name_s = "test_batch.bin";
