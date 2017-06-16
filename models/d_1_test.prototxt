@@ -1,10 +1,9 @@
-name: "net_d"
+name: "net_d_vamos"
 layer {
   name: "data"
 #  type: "MemoryData"
   type: "Input"
   top: "data"
-  top: "label"
   input_param {
   	shape: {
   		dim: 1

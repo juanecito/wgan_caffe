@@ -224,6 +224,7 @@ void verify_img(caffe::Net<T>* net, CCifar10* cifar10)
 
 	caffe::Blob<T>* input = sp_input.get();
 	input->Reshape({1, 3, 32, 32});
+//	input->Reshape({32, 32, 3, 1});
 	T *data = input->mutable_cpu_data();
 	const int n = input->count();
 
@@ -237,7 +238,8 @@ void verify_img(caffe::Net<T>* net, CCifar10* cifar10)
 
 	net->Forward();
 
-	const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = net->blob_by_name("ip1");
+	//const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = net->blob_by_name("ip1");
+	const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = net->blob_by_name("prob");
 	caffe::Blob<T>* blob = sh_ptr_blob.get();
 
 	T* data_result = blob->mutable_cpu_data();
@@ -295,7 +297,7 @@ int main(int argc, char **argv)
     if (argc == 3 && strcmp(argv[1], "--test_file") == 0 )
     {
     	std::cout << "trained network file: " << argv[2] << std::endl;
-        caffe::Net<float> net("./models/d_1_test.prototxt", caffe::Phase::TEST);
+        caffe::Net<float> net("./models/d_1_test.prototxt", caffe::Phase::TRAIN);
     	net.CopyTrainedLayersFromBinaryProto(argv[2]);
 
         verify_img(&net, &cifar10);
