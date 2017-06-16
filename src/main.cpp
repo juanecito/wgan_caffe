@@ -25,9 +25,17 @@
 #include <memory>
 #include <algorithm>
 #include <iostream>
+#include <functional>
 
 #include <caffe/caffe.hpp>
+
 #include <caffe/layers/memory_data_layer.hpp>
+#include <caffe/layers/conv_layer.hpp>
+#include <caffe/layers/pooling_layer.hpp>
+#include <caffe/layers/relu_layer.hpp>
+#include <caffe/layers/lrn_layer.hpp>
+#include <caffe/layers/inner_product_layer.hpp>
+#include <caffe/layers/softmax_layer.hpp>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -116,6 +124,49 @@ void test_1(void)
 	cv::waitKey();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::MemoryDataLayer<T>& layer)
+{
+	std::cout << layer.batch_size() << " " <<
+				layer.channels() << " " <<
+				layer.height() << " " <<
+				layer.width() << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::ConvolutionLayer<T>& layer){}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::PoolingLayer<T>& layer)
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::ReLULayer<T>& layer){}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::LRNLayer<T>& layer){}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::InnerProductLayer<T>& layer){}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T> void desc_network(caffe::SoftmaxLayer<T>& layer){}
+
+template <typename T>
+std::map<std::string, std::function<void(caffe::Layer<T>& layer)> > layer_desc_fn =
+{
+	{"MemoryData", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::MemoryDataLayer<T>&)layer);}},
+	{"Convolution", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::ConvolutionLayer<T>&)layer);}},
+	{"Pooling", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::PoolingLayer<T>&)layer);}},
+	{"ReLU", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::ReLULayer<T>&)layer);}},
+	{"LRN", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::LRNLayer<T>&)layer);}},
+	{"InnerProduct", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::InnerProductLayer<T>&)layer);}},
+	{"Softmax", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::SoftmaxLayer<T>&)layer);}}
+};
+
+////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 void desc_network(caffe::Net<T>& net)
 {
@@ -133,8 +184,27 @@ void desc_network(caffe::Net<T>& net)
 					blob->width() << " " <<
 					blob->count() << std::endl;
 	}
+
+	const std::vector<std::string>& layer_names = net.layer_names();
+
+	for (const auto& it_layer_names : layer_names)
+	{
+		auto boost_ptr_layer = net.layer_by_name(it_layer_names);
+		caffe::Layer<T>* layer = boost_ptr_layer.get();
+		std::cout << it_layer_names << " -> " <<
+				layer->ExactNumTopBlobs() << " " <<
+				layer->ExactNumBottomBlobs() << " " <<
+				layer->type() << std::endl;
+
+		auto it = layer_desc_fn<T>.find(layer->type());
+		if (it != layer_desc_fn<T>.end())
+		{
+			it->second(*layer);
+		}
+	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
 	CCifar10 cifar10;
@@ -177,15 +247,13 @@ int main(int argc, char **argv)
 //    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
 //    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);
 
-    dataLayer_trainnet->Reset(train_imgs, train_labels, 10);
-    dataLayer_testnet->Reset(test_imgs, test_labels, 10);
+    dataLayer_trainnet->Reset(train_imgs, train_labels, 10000);
+    dataLayer_testnet->Reset(test_imgs, test_labels, 10000);
 
     auto input_blob = solver->net()->blob_by_name("data");
 
     desc_network(*(solver->net().get()));
-
     return 0;
-
     solver->Solve();
 
 	std::cout << "channels: " << input_blob->channels() << std::endl;

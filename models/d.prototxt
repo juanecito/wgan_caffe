@@ -14,7 +14,7 @@ layer {
 #  }
   memory_data_param 
   {
-    batch_size: 10
+    batch_size: 100
     channels: 3
     height: 32
     width: 32 
