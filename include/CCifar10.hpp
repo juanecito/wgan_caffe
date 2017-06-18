@@ -50,7 +50,7 @@ struct S_Cifar10_img
 class CCifar10
 {
 	public:
-	// /home/juan/Desktop/my_git/caffe_network/bin/cifar-10-batches-bin/
+
 		CCifar10();
 		virtual ~CCifar10();
 
@@ -202,6 +202,8 @@ class CCifar10
 
 	private:
 
+		void calculate_means(void);
+
 		/*!
 		 *
 		 */
@@ -219,6 +221,8 @@ class CCifar10
 
 		std::vector<std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > > train_batchs_;
 		std::vector<std::shared_ptr<struct S_Cifar10_img_rgb<uint8_t> > > test_batchs_;
+
+		struct S_Cifar10_img<double> mean_values_;
 };
 
 
@@ -259,9 +263,9 @@ unsigned int CCifar10::get_all_train_batch_img(T** imgs)
 		{
 			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
 			{
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].red_channel_[uiJ] = ori_imgs[uiI].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].green_channel_[uiJ] = ori_imgs[uiI].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].blue_channel_[uiJ] = ori_imgs[uiI].blue_channel_[uiJ];
 			}
 		}
 		batch_index++;
@@ -288,9 +292,9 @@ unsigned int CCifar10::get_all_train_batch_img_rgb(T** imgs)
 		{
 			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
 			{
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3] = ori_imgs[uiJ].red_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 1] = ori_imgs[uiJ].green_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 2] = ori_imgs[uiJ].blue_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3] = ori_imgs[uiI].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 1] = ori_imgs[uiI].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 2] = ori_imgs[uiI].blue_channel_[uiJ];
 			}
 		}
 		batch_index++;
@@ -312,9 +316,9 @@ void CCifar10::get_test_batch_img(T** imgs)
 	{
 		for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
 		{
-			tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
-			tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
-			tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+			tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiI].red_channel_[uiJ];
+			tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiI].green_channel_[uiJ];
+			tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiI].blue_channel_[uiJ];
 		}
 	}
 	*imgs = (T*)(ori_imgs);
@@ -337,9 +341,9 @@ unsigned int CCifar10::get_all_test_batch_img(T** imgs)
 		{
 			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
 			{
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].red_channel_[uiJ] = ori_imgs[uiI].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].green_channel_[uiJ] = ori_imgs[uiI].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].blue_channel_[uiJ] = ori_imgs[uiI].blue_channel_[uiJ];
 			}
 		}
 		batch_index++;
@@ -366,9 +370,9 @@ unsigned int CCifar10::get_all_test_batch_img_rgb(T** imgs)
 		{
 			for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
 			{
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3] = ori_imgs[uiJ].red_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 1] = ori_imgs[uiJ].green_channel_[uiJ];
-				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 2] = ori_imgs[uiJ].blue_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3] = ori_imgs[uiI].red_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 1] = ori_imgs[uiI].green_channel_[uiJ];
+				tmp_img[(batch_index * cifar10_imgs_batch_s) + uiI].rgb_[uiJ * 3 + 2] = ori_imgs[uiI].blue_channel_[uiJ];
 			}
 		}
 		batch_index++;

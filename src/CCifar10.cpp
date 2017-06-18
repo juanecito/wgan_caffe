@@ -28,6 +28,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <cstring>
 
 #include "CCifar10.hpp"
 
@@ -57,6 +58,8 @@ CCifar10::CCifar10(): is_test_loaded_(false), is_train_loaded_(false)
 
 	ori_train_batchs_.clear();
 	ori_test_batchs_.clear();
+
+	memset(&mean_values_, 0, sizeof(struct S_Cifar10_img<float>));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +138,8 @@ void CCifar10::load_train_batchs(void)
 		ori_train_batchs_.push_back(train_batch_label_img);
 		train_labels_.push_back(train_label);
 	}
+
+	calculate_means();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -241,6 +246,62 @@ void CCifar10::show_test_img(unsigned int img_index)
 {
 	uint8_t* img = this->get_test_img_rgb(img_index);
 	show_img(img, 3072);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ */
+void CCifar10::calculate_means(void)
+{
+	struct S_Cifar10_img<double>* batchs_mean_values = nullptr;
+	batchs_mean_values = new struct S_Cifar10_img<double> [ori_train_batchs_.size()];
+
+	memset(batchs_mean_values, 0,
+			sizeof(struct S_Cifar10_img<double>) * ori_train_batchs_.size());
+	memset(&mean_values_, 0, sizeof(struct S_Cifar10_img<double>));
+
+	unsigned int batch_index = 0;
+
+	for (auto it : this->ori_train_batchs_)
+	{
+		for (unsigned int img_index = 0; img_index < cifar10_imgs_batch_s; img_index++)
+		{
+			for (unsigned int uiI = 0; uiI < 1024; uiI++)
+			{
+				batchs_mean_values[batch_index].red_channel_[uiI] += (double)((it.get())[img_index].red_channel_[uiI]);
+				batchs_mean_values[batch_index].green_channel_[uiI] += (double)((it.get())[img_index].green_channel_[uiI]);
+				batchs_mean_values[batch_index].blue_channel_[uiI] += (double)((it.get())[img_index].blue_channel_[uiI]);
+			}
+		}
+
+		for (unsigned int uiI = 0; uiI < 1024; uiI++)
+		{
+			batchs_mean_values[batch_index].red_channel_[uiI] /= (double)(cifar10_imgs_batch_s);
+			batchs_mean_values[batch_index].green_channel_[uiI] /= (double)(cifar10_imgs_batch_s);
+			batchs_mean_values[batch_index].blue_channel_[uiI] /= (double)(cifar10_imgs_batch_s);
+		}
+
+
+		batch_index++;
+	}
+
+	for (unsigned int uiI = 0; uiI < cifar10_train_batch_s; uiI++)
+	{
+		for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+		{
+			mean_values_.red_channel_[uiJ] += batchs_mean_values[uiI].red_channel_[uiJ];
+			mean_values_.green_channel_[uiJ] += batchs_mean_values[uiI].green_channel_[uiJ];
+			mean_values_.blue_channel_[uiJ] += batchs_mean_values[uiI].blue_channel_[uiJ];
+		}
+	}
+
+	for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+	{
+		mean_values_.red_channel_[uiJ] /= (double)cifar10_train_batch_s;
+		mean_values_.green_channel_[uiJ] /= (double)cifar10_train_batch_s;
+		mean_values_.blue_channel_[uiJ] /= (double)cifar10_train_batch_s;
+	}
 }
 
 
