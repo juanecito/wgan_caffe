@@ -1,12 +1,37 @@
-name: "net_d_vamos"
+name: "CIFAR10_full"
 layer {
-  name: "data"
-#  type: "MemoryData"
-  type: "Input"
+  name: "cifar"
+  type: "Data"
   top: "data"
   top: "label"
-  input_param { shape: { dim: 1 dim: 3	dim: 32	dim: 32	} shape: { dim: 1 dim: 1}  }
-#  memory_data_param { batch_size: 1 channels: 3 height: 32 width: 32 }
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    mean_file: "examples/cifar10/mean.binaryproto"
+  }
+  data_param {
+    source: "examples/cifar10/cifar10_train_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
+}
+layer {
+  name: "cifar"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    mean_file: "examples/cifar10/mean.binaryproto"
+  }
+  data_param {
+    source: "examples/cifar10/cifar10_test_lmdb"
+    batch_size: 100
+    backend: LMDB
+  }
 }
 layer {
   name: "conv1"
@@ -24,6 +49,13 @@ layer {
     pad: 2
     kernel_size: 5
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layer {
@@ -71,6 +103,13 @@ layer {
     pad: 2
     kernel_size: 5
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layer {
@@ -112,6 +151,13 @@ layer {
     pad: 2
     kernel_size: 5
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layer {
@@ -146,11 +192,29 @@ layer {
   }
   inner_product_param {
     num_output: 10
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+    }
   }
 }
 layer {
-  name: "prob"
-  type: "Softmax"
+  name: "accuracy"
+  type: "Accuracy"
   bottom: "ip1"
-  top: "prob"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ip1"
+  bottom: "label"
+  top: "loss"
 }

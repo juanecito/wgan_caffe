@@ -1,4 +1,4 @@
-net: "./models/d.prototxt"
+net: "./models/cifar10_full_train_test2.prototxt"
 base_lr: 0.02
 lr_policy: "step"
 gamma: 0.5
