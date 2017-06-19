@@ -1,11 +1,12 @@
 name: "net_d_vamos"
 layer {
-  name: "data"
+  name: "cifar10"
 #  type: "MemoryData"
   type: "Input"
   top: "data"
-  top: "label"
-  input_param { shape: { dim: 1 dim: 3	dim: 32	dim: 32	} shape: { dim: 1 dim: 1}  }
+#  top: "label"
+  transform_param { mean_file: "./mean.binaryproto" }
+  input_param { shape: { dim: 1 dim: 3 dim: 32 dim: 32 } }
 #  memory_data_param { batch_size: 1 channels: 3 height: 32 width: 32 }
 }
 layer {
