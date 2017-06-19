@@ -45,167 +45,9 @@
 
 #include "CCifar10.hpp"
 
-/*! \brief Timer */
-class Timer {
-  using Clock = std::chrono::high_resolution_clock;
- public:
-  /*! \brief start or restart timer */
-  inline void Tic() {
-    start_ = Clock::now();
-  }
-  /*! \brief stop timer */
-  inline void Toc() {
-    end_ = Clock::now();
-  }
-  /*! \brief return time in ms */
-  inline double Elasped() {
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_ - start_);
-    return duration.count();
-  }
+int train_test(void);
 
- private:
-  Clock::time_point start_, end_;
-};
-
-void test_1(void)
-{
-	//if (caffe::GPUAvailable()) {
-	if (1) {
-		caffe::Caffe::set_mode(caffe::Caffe::GPU);
-	}
-	caffe::Net<float> net("./models/g.prototxt", caffe::Phase::TEST);
-	net.CopyTrainedLayersFrom("./models/g.caffemodel");
-	//  caffe::Profiler *profiler = caffe::Profiler::Get();
-	//  profiler->TurnON();
-	//  profiler->ScopeStart("wgan");
-	// random noise
-	srand(time(NULL));
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::normal_distribution<float> nd(0, 1);
-	auto input = net.blob_by_name("data");
-	input->Reshape({64, 100, 1, 1});
-	float *data = input->mutable_cpu_data();
-	const int n = input->count();
-	for (int i = 0; i < n; ++i) {
-		data[i] = nd(gen);
-	}
-	// forward
-	Timer timer;
-	timer.Tic();
-	net.Forward();
-	timer.Toc();
-	// visualization
-	auto images = net.blob_by_name("gconv5");
-	const int num = images->num();
-	const int channels = images->channels();
-	const int height = images->height();
-	const int width = images->width();
-	const int canvas_len = std::ceil(std::sqrt(num));
-	cv::Mat canvas(canvas_len*height, canvas_len*width, CV_8UC3);
-	auto clip = [](float x)->uchar {
-		const int val = static_cast<int>(x*127.5 + 127.5);
-		return std::max(0, std::min(255, val));
-	};
-	for (int i = 0; i < num; ++i) {
-		const int pos_y = (i / canvas_len)*height;
-		const int pos_x = (i % canvas_len)*width;
-		for (int y = 0; y < height; ++y) {
-			for (int x = 0; x < width; ++x) {
-				// BGR, mxnet model saves RGB
-				canvas.at<cv::Vec3b>(pos_y + y, pos_x + x)[0] = clip(images->data_at(i, 2, y, x));
-				canvas.at<cv::Vec3b>(pos_y + y, pos_x + x)[1] = clip(images->data_at(i, 1, y, x));
-				canvas.at<cv::Vec3b>(pos_y + y, pos_x + x)[2] = clip(images->data_at(i, 0, y, x));
-			}
-		}
-	}
-	//  profiler->ScopeEnd();
-	//  profiler->TurnOFF();
-	//  profiler->DumpProfile("profile.json");
-	std::cout << "generate costs " << timer.Elasped() << " ms" << std::endl;
-	cv::imshow("gan-face", canvas);
-	cv::waitKey();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::MemoryDataLayer<T>& layer)
-{
-	std::cout << layer.batch_size() << " " <<
-				layer.channels() << " " <<
-				layer.height() << " " <<
-				layer.width() << std::endl;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::ConvolutionLayer<T>& layer){}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::PoolingLayer<T>& layer)
-{
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::ReLULayer<T>& layer){}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::LRNLayer<T>& layer){}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::InnerProductLayer<T>& layer){}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T> void desc_network(caffe::SoftmaxLayer<T>& layer){}
-
-template <typename T>
-std::map<std::string, std::function<void(caffe::Layer<T>& layer)> > layer_desc_fn =
-{
-	{"MemoryData", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::MemoryDataLayer<T>&)layer);}},
-	{"Convolution", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::ConvolutionLayer<T>&)layer);}},
-	{"Pooling", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::PoolingLayer<T>&)layer);}},
-	{"ReLU", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::ReLULayer<T>&)layer);}},
-	{"LRN", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::LRNLayer<T>&)layer);}},
-	{"InnerProduct", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::InnerProductLayer<T>&)layer);}},
-	{"Softmax", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::SoftmaxLayer<T>&)layer);}}
-};
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename T>
-void desc_network(caffe::Net<T>& net)
-{
-	std::cout << "Network name: " << net.name() << std::endl;
-	const std::vector<std::string>& vector_blob_names = net.blob_names();
-
-	for (const auto& it_blob_names : vector_blob_names)
-	{
-		auto boost_ptr_blob = net.blob_by_name(it_blob_names);
-		caffe::Blob<T>* blob = boost_ptr_blob.get();
-		std::cout << it_blob_names << " -> " <<
-					blob->num() << " " <<
-					blob->channels() << " " <<
-					blob->height() << " " <<
-					blob->width() << " " <<
-					blob->count() << std::endl;
-	}
-
-	const std::vector<std::string>& layer_names = net.layer_names();
-
-	for (const auto& it_layer_names : layer_names)
-	{
-		auto boost_ptr_layer = net.layer_by_name(it_layer_names);
-		caffe::Layer<T>* layer = boost_ptr_layer.get();
-		std::cout << it_layer_names << " -> " <<
-				layer->ExactNumTopBlobs() << " " <<
-				layer->ExactNumBottomBlobs() << " " <<
-				layer->type() << std::endl;
-
-		auto it = layer_desc_fn<T>.find(layer->type());
-		if (it != layer_desc_fn<T>.end())
-		{
-			it->second(*layer);
-		}
-	}
-}
+int main_test(void);
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -295,23 +137,27 @@ void verify_img(caffe::Net<T>* net, CCifar10* cifar10, bool is_memory_data_layer
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
-void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10)
+void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10, bool is_memory_data_layer)
 {
+	T* test_rgb_imgs = nullptr;
+	unsigned int count_test = cifar10->get_all_test_batch_img_rgb(&test_rgb_imgs);
+
 	T* test_imgs = nullptr;
-	unsigned int count_test = cifar10->get_all_test_batch_img_rgb(&test_imgs);
+	count_test = cifar10->get_all_test_batch_img(&test_imgs);
+
 
 	T* test_labels = nullptr;
 	count_test = cifar10->get_all_test_labels(&test_labels);
 
-	S_Cifar10_img_rgb<T>* imgs_rgb_str = (S_Cifar10_img_rgb<T>*)test_imgs;
+	S_Cifar10_img_rgb<T>* imgs_rgb_str = (S_Cifar10_img_rgb<T>*)test_rgb_imgs;
+	S_Cifar10_img<T>* imgs_str = (S_Cifar10_img<T>*)test_imgs;
 
 	unsigned int img_index = 3500;
-	bool is_memory_data_layer = true;
 	if (is_memory_data_layer)
 	{
 	    caffe::MemoryDataLayer<T> *dataLayer_trainnet =
 	    	(caffe::MemoryDataLayer<T> *) (solver->net()->layer_by_name("cifar10").get());
-		dataLayer_trainnet->Reset(imgs_rgb_str[img_index].rgb_, (T*)(test_labels + img_index), 1);
+		dataLayer_trainnet->Reset((T*)(imgs_str + img_index), (T*)(test_labels + img_index), 100);
 		std::cout << "label: " << test_labels[img_index] << std::endl;
 	}
 	else
@@ -320,7 +166,6 @@ void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10)
 
 		caffe::Blob<T>* input = sp_input.get();
 		input->Reshape({1, 3, 32, 32});
-	//	input->Reshape({32, 32, 3, 1});
 		T *data = input->mutable_cpu_data();
 		const int n = input->count();
 
@@ -329,19 +174,36 @@ void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10)
 		auto it = CCifar10::cifar10_labels.find(test_labels[img_index]);
 		std::cout << "label: " << it->second << std::endl;
 
-		memcpy(data, imgs_rgb_str[img_index].rgb_, 3072 * sizeof(T));
+		memcpy(data, &(imgs_str[img_index]), 3072 * sizeof(T));
 	}
 
 	cifar10->show_test_img(img_index);
 
+	solver->net()->Forward();
 
-	solver->Step(1);
+	const std::vector<caffe::Blob<T>* > output_blobs_vector = solver->net()->output_blobs();
 
-	//const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = net->blob_by_name("ip1");
-	const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = solver->net()->blob_by_name("prob");
+	std::cout << "output blobs number " << output_blobs_vector.size() << std::endl;
+
+	for (const auto &it : output_blobs_vector)
+	{
+		std::cout << it->shape_string() << std::endl;
+		unsigned int blob_count = it->count();
+		const T* data_result = it->cpu_data();
+		for (unsigned int uiI = 0; uiI < blob_count; uiI++)
+		{
+			if (uiI % 20 == 0) std::cout << std::endl;
+			std::cout << " ["<< data_result[uiI] << "] ";
+		}
+	}
+
+	std::cout << std::endl;
+
+	const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = solver->net()->blob_by_name("ip1");
+	//const boost::shared_ptr<caffe::Blob<T> > sh_ptr_blob = net->blob_by_name("prob");
 	caffe::Blob<T>* blob = sh_ptr_blob.get();
 
-	T* data_result = blob->mutable_cpu_data();
+	const T* data_result = blob->cpu_data();
 	unsigned int blob_count = blob->count();
 	unsigned int blob_num = blob->num();
 	std::string shape_string = blob->shape_string();
@@ -352,179 +214,80 @@ void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10)
 
 	for (unsigned int uiI = 0; uiI < blob_count; uiI++)
 	{
-		std::cout << data_result[uiI] << std::endl;
+		if (uiI > 0 && uiI % 20 == 0) std::cout << std::endl;
+		std::cout << data_result[uiI] << " ";
 	}
 
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void usage(char *prog)
+{
+  fprintf(stderr, "usage: %s [-ab] [-c arg]\n", prog);
+  exit(1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
-	CCifar10 cifar10;
-	cifar10.set_path("./bin/cifar-10-batches-bin");
 
-	cifar10.load_train_batchs();
-	cifar10.load_test_batchs();
+	int errflg = 0;
+	char * carg;
+	int cflag = 0;
 
-	//--------------------------------------------------------------------------
-	// Get adequate data from cifar10
+	int c;
+	extern char * optarg;
+	extern int optind, opterr;
+	char * progname = argv[0];
 
-	float* train_labels = nullptr;
-	unsigned int count_train = cifar10.get_all_train_labels(&train_labels);
-
-	float* test_labels = nullptr;
-	unsigned int count_test = cifar10.get_all_test_labels(&test_labels);
-
-	float* train_imgs = nullptr;
-	count_train = cifar10.get_all_train_batch_img(&train_imgs);
-
-	float* test_imgs = nullptr;
-	count_test = cifar10.get_all_test_batch_img(&test_imgs);
-
-	//--------------------------------------------------------------------------
-	// Test RGB image from cifar10
-	//cifar10.show_train_img(3, 1500);
-	//--------------------------------------------------------------------------
-
-	caffe::Caffe::set_mode(caffe::Caffe::GPU);
-	//caffe::Caffe::set_mode(caffe::Caffe::CPU);
-
-	caffe::SolverParameter solver_param;
-//    caffe::ReadSolverParamsFromTextFileOrDie("./models/solver.prototxt", &solver_param);
-	caffe::ReadSolverParamsFromTextFileOrDie("./models/cifar10_full_solver.prototxt", &solver_param);
-	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
-
-    if (argc == 3 && strcmp(argv[1], "--test_file") == 0 )
-    {
-    	std::cout << "trained network file: " << argv[2] << std::endl;
-        caffe::Net<float> net("./models/d_1_test.prototxt", caffe::Phase::TEST);
-    	net.CopyTrainedLayersFromBinaryProto(argv[2]);
-        verify_img(&net, &cifar10, false);
-        return 0;
-    }
-    else if (argc == 3 && strcmp(argv[1], "--solver_file") == 0 )
-    {
-    	std::cout << "trained network file: " << argv[2] << std::endl;
-        solver->Restore(argv[2]);
-        verify_img(solver.get(), &cifar10);
-        return 0;
-    } else if (argc == 3 && strcmp(argv[1], "--train_file") == 0 )
-    {
-    	std::cout << "trained network file: " << argv[2] << std::endl;
-        solver->net()->CopyTrainedLayersFromBinaryProto(argv[2]);
-        verify_img(solver->net().get(), &cifar10, true);
-        return 0;
-    }
-
-    //	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
-    //	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
-
-    caffe::MemoryDataLayer<float> *dataLayer_trainnet =
-    	(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("cifar10").get());
-    caffe::MemoryDataLayer<float> *dataLayer_testnet =
-        (caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("cifar10").get());
-
-//    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
-//    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);
-
-    dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
-    dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
-
-    const caffe::LayerParameter param = dataLayer_trainnet->layer_param();
-    desc_network(*(solver->net().get()));
-    param.PrintDebugString();
-
-    //--------------------------------------------------------------------------
-    solver->Solve();
-    //--------------------------------------------------------------------------
-    auto input_blob = solver->net()->blob_by_name("data");
-
-    std::cout << "channels: " << input_blob->channels() << std::endl;
-	std::cout << "height: " << input_blob->height() << std::endl;
-	std::cout << "width: " << input_blob->width() << std::endl;
-	std::cout << "count: " << input_blob->count() << std::endl;
-
-	float loss = 0.0;
-	for (unsigned int uiI = 0; uiI < 100000; uiI++)
-	{
-		loss = solver->net()->ForwardBackward();
-		solver->net()->Update();
-	}
-
-	std::cout << "loss " << loss << std::endl;
-
-	auto output_blob = solver->net()->blob_by_name("prob");
-
-	std::cout << "channels: " << output_blob->channels() << std::endl;
-	std::cout << "height: " << output_blob->height() << std::endl;
-	std::cout << "width: " << output_blob->width() << std::endl;
-	std::cout << "count: " << output_blob->count() << std::endl;
-
-	std::cout << "values: " << std::endl;
-
-	for (unsigned int uiI = 0; uiI < output_blob->channels(); uiI++)
-	{
-		std::cout << "value: " << output_blob->data_at(1, uiI, 1, 1) << std::endl;
-	}
-	std::cout << std::endl;
-
-#if 0
+	while ((c = getopt(argc , argv, "abc:")) != -1)
+		switch (c) {
+		case 'a':
+			puts("option a");
+			break;
+		case 'b':
+			puts("option b");
+			break;
+		case 'c':
+			cflag++;
+			puts("option c");
+			carg = optarg;
+			break;
+		case '?':
+			errflg++;
+			break;
+		}
+	if (errflg)
+		usage(progname);
+	if(cflag)
+		printf("%s\n", carg);
 
 
-	//net.CopyTrainedLayersFrom("./models/g.caffemodel");
-//  caffe::Profiler *profiler = caffe::Profiler::Get();
-//  profiler->TurnON();
-//  profiler->ScopeStart("wgan");
-  // random noise
-  srand(time(NULL));
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<float> nd(0, 1);
-  auto input = net.blob_by_name("data");
-  input->Reshape({64, 100, 1, 1});
-  float *data = input->mutable_cpu_data();
-  const int n = input->count();
-  for (int i = 0; i < n; ++i) {
-    data[i] = nd(gen);
-  }
-  // forward
-  Timer timer;
-  timer.Tic();
-  net.Forward();
-  timer.Toc();
-  // visualization
-  auto images = net.blob_by_name("gconv5");
-  const int num = images->num();
-  const int channels = images->channels();
-  const int height = images->height();
-  const int width = images->width();
-  const int canvas_len = std::ceil(std::sqrt(num));
-  cv::Mat canvas(canvas_len*height, canvas_len*width, CV_8UC3);
-  auto clip = [](float x)->uchar {
-    const int val = static_cast<int>(x*127.5 + 127.5);
-    return std::max(0, std::min(255, val));
-  };
-  for (int i = 0; i < num; ++i) {
-    const int pos_y = (i / canvas_len)*height;
-    const int pos_x = (i % canvas_len)*width;
-    for (int y = 0; y < height; ++y) {
-      for (int x = 0; x < width; ++x) {
-        // BGR, mxnet model saves RGB
-        canvas.at<cv::Vec3b>(pos_y + y, pos_x + x)[0] = clip(images->data_at(i, 2, y, x));
-        canvas.at<cv::Vec3b>(pos_y + y, pos_x + x)[1] = clip(images->data_at(i, 1, y, x));
-        canvas.at<cv::Vec3b>(pos_y + y, pos_x + x)[2] = clip(images->data_at(i, 0, y, x));
-      }
-    }
-  }
-//  profiler->ScopeEnd();
-//  profiler->TurnOFF();
-//  profiler->DumpProfile("profile.json");
-  std::cout << "generate costs " << timer.Elasped() << " ms" << std::endl;
-  cv::imshow("gan-face", canvas);
-  cv::waitKey();
+//    if (argc == 3 && strcmp(argv[1], "-test_file") == 0 )
+//    {
+//    	std::cout << "trained network file: " << argv[2] << std::endl;
+//        caffe::Net<float> net("./models/d_1_test.prototxt", caffe::Phase::TEST);
+//    	net.CopyTrainedLayersFromBinaryProto(argv[2]);
+//        verify_img(&net, &cifar10, false);
+//        return 0;
+//    }
+//    else if (argc == 3 && strcmp(argv[1], "-solver_file") == 0 )
+//    {
+//    	std::cout << "trained network file: " << argv[2] << std::endl;
+//        solver->Restore(argv[2]);
+//        verify_img(solver.get(), &cifar10);
+//        return 0;
+//    } else if (argc == 3 && strcmp(argv[1], "-train_file") == 0 )
+//    {
+//    	std::cout << "trained network file: " << argv[2] << std::endl;
+//        solver->net()->CopyTrainedLayersFromBinaryProto(argv[2]);
+//        verify_img(solver->net().get(), &cifar10, true);
+//        return 0;
+//    }
 
-#endif
 
-  return 0;
+	// return train_test();
+	return main_test();
+
 }
