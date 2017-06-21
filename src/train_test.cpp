@@ -27,6 +27,8 @@
 #include <iostream>
 #include <functional>
 
+#include <sys/stat.h>
+
 #include <caffe/caffe.hpp>
 
 #include <caffe/layers/memory_data_layer.hpp>
@@ -72,6 +74,7 @@ template <typename T> void desc_network(caffe::InnerProductLayer<T>& layer){}
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T> void desc_network(caffe::SoftmaxLayer<T>& layer){}
 
+////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 std::map<std::string, std::function<void(caffe::Layer<T>& layer)> > layer_desc_fn =
 {
@@ -84,9 +87,11 @@ std::map<std::string, std::function<void(caffe::Layer<T>& layer)> > layer_desc_f
 	{"Softmax", [](caffe::Layer<T>& layer) -> void {desc_network((caffe::SoftmaxLayer<T>&)layer);}}
 };
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param net
+ */
 template <typename T>
 void desc_network(caffe::Net<T>& net)
 {
@@ -125,93 +130,185 @@ void desc_network(caffe::Net<T>& net)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int train_test(void)
+/**
+ *
+ * @param file_name
+ * @return
+ */
+bool exist_file(const std::string& file_name)
 {
-	CCifar10 cifar10;
-	cifar10.set_path("./bin/cifar-10-batches-bin");
+	bool result = false;
 
-	cifar10.load_train_batchs();
-	cifar10.load_test_batchs();
+	struct stat st;
 
+	if (stat(file_name.c_str(), &st) == 0) result = true;
+
+	return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param cifar10
+ * @return
+ */
+int train_test(CCifar10* cifar10, struct S_ConfigArgs* configArgs)
+{
 	//--------------------------------------------------------------------------
 	// Get adequate data from cifar10
-
 	float* train_labels = nullptr;
-	unsigned int count_train = cifar10.get_all_train_labels(&train_labels);
+	unsigned int count_train = cifar10->get_all_train_labels(&train_labels);
 
 	float* test_labels = nullptr;
-	unsigned int count_test = cifar10.get_all_test_labels(&test_labels);
+	unsigned int count_test = cifar10->get_all_test_labels(&test_labels);
 
 	float* train_imgs = nullptr;
-	count_train = cifar10.get_all_train_batch_img(&train_imgs);
+	count_train = cifar10->get_all_train_batch_img(&train_imgs);
 
 	float* test_imgs = nullptr;
-	count_test = cifar10.get_all_test_batch_img(&test_imgs);
-
-	//--------------------------------------------------------------------------
-	// Test RGB image from cifar10
-	//cifar10.show_train_img(3, 1500);
+	count_test = cifar10->get_all_test_batch_img(&test_imgs);
 	//--------------------------------------------------------------------------
 
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 	//caffe::Caffe::set_mode(caffe::Caffe::CPU);
 
-	caffe::SolverParameter solver_param;
-//    caffe::ReadSolverParamsFromTextFileOrDie("./models/solver.prototxt", &solver_param);
-	caffe::ReadSolverParamsFromTextFileOrDie("./models/cifar10_full_solver.prototxt", &solver_param);
-	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+	if (!exist_file("cifar10_full_iter_60000.solverstate.h5"))
+	{
+		caffe::SolverParameter solver_param;
+	//    caffe::ReadSolverParamsFromTextFileOrDie("./models/solver.prototxt", &solver_param);
+		caffe::ReadSolverParamsFromTextFileOrDie("./models/cifar10_full_solver.prototxt", &solver_param);
+		std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
-    //	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
-    //	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
+	//	solver_param.base_lr();
+	//	solver_param.set_base_lr(0.001);
 
-    caffe::MemoryDataLayer<float> *dataLayer_trainnet =
-    	(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("cifar10").get());
-    caffe::MemoryDataLayer<float> *dataLayer_testnet =
-        (caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("cifar10").get());
+		//	caffe::Net<float> net_g("./models/g.prototxt", caffe::Phase::TRAIN);
+		//	caffe::Net<float> net_d("./models/d.prototxt", caffe::Phase::TRAIN);
 
-//    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
-//    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);
+		caffe::MemoryDataLayer<float> *dataLayer_trainnet =
+			(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("cifar10").get());
+		caffe::MemoryDataLayer<float> *dataLayer_testnet =
+			(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("cifar10").get());
 
-    dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
-    dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
+	//    dataLayer_trainnet->Reset(train_imgs, train_labels, CCifar10::cifar10_imgs_batch_s);
+	//    dataLayer_testnet->Reset(test_imgs, test_labels, CCifar10::cifar10_imgs_batch_s);
 
-    const caffe::LayerParameter param = dataLayer_trainnet->layer_param();
-    desc_network(*(solver->net().get()));
-    param.PrintDebugString();
+		dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
+		dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
 
-    //--------------------------------------------------------------------------
-    solver->Solve();
-    //--------------------------------------------------------------------------
-    auto input_blob = solver->net()->blob_by_name("data");
+		const caffe::LayerParameter param = dataLayer_trainnet->layer_param();
+		desc_network(*(solver->net().get()));
+		param.PrintDebugString();
 
-    std::cout << "channels: " << input_blob->channels() << std::endl;
+		//--------------------------------------------------------------------------
+		solver->Solve();
+		//--------------------------------------------------------------------------
+	}
+
+	if (!exist_file("cifar10_full_iter_65000.solverstate.h5"))
+	{
+		caffe::SolverParameter solver_param;
+		caffe::ReadSolverParamsFromTextFileOrDie("./models/cifar10_full_solver_lr1.prototxt", &solver_param);
+		std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+		solver->Restore("cifar10_full_iter_60000.solverstate.h5");
+
+		caffe::MemoryDataLayer<float> *dataLayer_trainnet =
+			(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("cifar10").get());
+		caffe::MemoryDataLayer<float> *dataLayer_testnet =
+			(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("cifar10").get());
+
+		dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
+		dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
+
+		const caffe::LayerParameter param = dataLayer_trainnet->layer_param();
+		desc_network(*(solver->net().get()));
+		param.PrintDebugString();
+
+		//--------------------------------------------------------------------------
+		solver->Solve();
+		//--------------------------------------------------------------------------
+	}
+
+	if (!exist_file("cifar10_full_iter_70000.solverstate.h5"))
+	{
+		caffe::SolverParameter solver_param;
+		caffe::ReadSolverParamsFromTextFileOrDie("./models/cifar10_full_solver_lr2.prototxt", &solver_param);
+		std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+		solver->Restore("cifar10_full_iter_65000.solverstate.h5");
+
+		caffe::MemoryDataLayer<float> *dataLayer_trainnet =
+				(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("cifar10").get());
+		caffe::MemoryDataLayer<float> *dataLayer_testnet =
+				(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("cifar10").get());
+
+		dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
+		dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
+
+		const caffe::LayerParameter param = dataLayer_trainnet->layer_param();
+		desc_network(*(solver->net().get()));
+		param.PrintDebugString();
+
+		//----------------------------------------------------------------------
+		solver->Solve();
+		//----------------------------------------------------------------------
+	}
+
+	caffe::Net<float> net_final("./models/d_1_test.prototxt", caffe::Phase::TEST);
+	net_final.CopyTrainedLayersFromHDF5("cifar10_full_iter_70000.caffemodel.h5");
+
+	auto input = net_final.blob_by_name("data");
+	input->Reshape({1, 3, 32, 32});
+	float *data = input->mutable_cpu_data();
+	const int n = input->count();
+
+	memcpy(data, test_imgs + 3072 , 3 * 32 * 32 * sizeof(float));
+
+	net_final.Forward();
+
+	auto input_blob = net_final.blob_by_name("ip1");
+
+	std::cout << "channels: " << input_blob->channels() << std::endl;
 	std::cout << "height: " << input_blob->height() << std::endl;
 	std::cout << "width: " << input_blob->width() << std::endl;
 	std::cout << "count: " << input_blob->count() << std::endl;
+	std::cout << "num: " << input_blob->num() << std::endl;
 
-	float loss = 0.0;
-	for (unsigned int uiI = 0; uiI < 100000; uiI++)
-	{
-		loss = solver->net()->ForwardBackward();
-		solver->net()->Update();
-	}
+	std::cout << "values: " << std::endl;
 
-	std::cout << "loss " << loss << std::endl;
+	unsigned int index = 0;
+	for (unsigned int n = 0; n < input_blob->num(); n++)
+		for (unsigned int c = 0; c < input_blob->channels(); c++)
+			for (unsigned int h = 0; h < input_blob->height(); h++)
+				for (unsigned int w = 0; w < input_blob->width(); w++)
+				{
+					if (index % 20 == 0) std::cout << std::endl;
+					std::cout << input_blob->data_at(n, c, h, w) << " ";
+					index++;
+				}
+	std::cout << std::endl;
 
-	auto output_blob = solver->net()->blob_by_name("prob");
+	auto output_blob = net_final.blob_by_name("prob");
 
 	std::cout << "channels: " << output_blob->channels() << std::endl;
 	std::cout << "height: " << output_blob->height() << std::endl;
 	std::cout << "width: " << output_blob->width() << std::endl;
 	std::cout << "count: " << output_blob->count() << std::endl;
+	std::cout << "num: " << output_blob->num() << std::endl;
 
 	std::cout << "values: " << std::endl;
 
-	for (unsigned int uiI = 0; uiI < output_blob->channels(); uiI++)
-	{
-		std::cout << "value: " << output_blob->data_at(1, uiI, 1, 1) << std::endl;
-	}
+	index = 0;
+	for (unsigned int n = 0; n < output_blob->num(); n++)
+		for (unsigned int c = 0; c < output_blob->channels(); c++)
+			for (unsigned int h = 0; h < output_blob->height(); h++)
+				for (unsigned int w = 0; w < output_blob->width(); w++)
+				{
+					if (index % 20 == 0) std::cout << std::endl;
+					std::cout << output_blob->data_at(n, c, h, w) << " ";
+					index++;
+				}
 	std::cout << std::endl;
 
-  return 0;
+
+	return 0;
 }
