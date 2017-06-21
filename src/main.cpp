@@ -27,6 +27,8 @@
 #include <iostream>
 #include <functional>
 
+#include <getopt.h>
+
 #include <caffe/caffe.hpp>
 
 #include <caffe/layers/memory_data_layer.hpp>
@@ -45,7 +47,7 @@
 
 #include "CCifar10.hpp"
 
-int train_test(void);
+int train_test(CCifar10* cifar10_data, struct S_ConfigArgs* configArgs);
 
 int main_test(void);
 
@@ -131,8 +133,6 @@ void verify_img(caffe::Net<T>* net, CCifar10* cifar10, bool is_memory_data_layer
 		if (uiI > 0 && uiI % 20 == 0) std::cout << std::endl;
 		std::cout << data_result[uiI] << " ";
 	}
-
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -217,52 +217,121 @@ void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10, bool is_memory_data
 		if (uiI > 0 && uiI % 20 == 0) std::cout << std::endl;
 		std::cout << data_result[uiI] << " ";
 	}
-
-
 }
+
+enum E_CONFIG_ARGS_OPTS
+{
+	OPT_LOG,
+	OPT_PRE_TRAIN_FILE,
+	OPT_SOLVER_MODEL_FILE,
+};
+
+struct S_ConfigArgs
+{
+	char* logarg_;
+	char* pretrain_file_name_;
+	char* model_solver_file_;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 static void usage(char *prog)
 {
-  fprintf(stderr, "usage: %s [-ab] [-c arg]\n", prog);
+  fprintf(stderr, "usage: %s [-help] [-log arg] [-train-file arg] [-M arg]\n", prog);
   exit(1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv)
+{
+	int c, option_index, err;
+	static const char short_options[] = "M:P:C:f:n";
+	static const struct option long_options[] = {
+		{"help",     0, 0, 'h'},
+		{"log",      1, 0, OPT_LOG},
+		{"train-file", 1, 0, OPT_PRE_TRAIN_FILE},
+		{"solver-model", 1, 0, OPT_SOLVER_MODEL_FILE},
+		{0, 0, 0, 0}
+	};
+
+	while ((c = getopt_long(argc, argv, short_options, long_options,
+					&option_index)) != -1)
+	{
+		switch (c)
+		{
+		case OPT_LOG:
+			configArgs->logarg_ = optarg;
+			break;
+
+		case OPT_PRE_TRAIN_FILE:
+			configArgs->pretrain_file_name_ = optarg;
+			break;
+
+		case OPT_SOLVER_MODEL_FILE:
+			configArgs->model_solver_file_ = optarg;
+			break;
+
+		case 'M':
+			configArgs->model_solver_file_ = optarg;
+			break;
+
+		case 'P':
+
+			break;
+
+		case 'C':
+
+			break;
+
+		case 'n':
+
+			break;
+
+		case 'h':
+		default:
+			usage(argv[0]);
+			exit(EXIT_SUCCESS);
+		}
+	}
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param cifar_path
+ * @return
+ */
+CCifar10* get_cifar10_data(const std::string& cifar_path)
+{
+	CCifar10* cifar10 = new CCifar10();
+	cifar10->set_path("./bin/cifar-10-batches-bin");
+
+	cifar10->load_train_batchs();
+	cifar10->load_test_batchs();
+
+	//--------------------------------------------------------------------------
+	// Test RGB image from cifar10
+	//cifar10.show_train_img(3, 1500);
+	//--------------------------------------------------------------------------
+
+	return cifar10;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param argc
+ * @param argv
+ * @return
+ */
 int main(int argc, char **argv)
 {
+	struct S_ConfigArgs configArgs;
+	parse_arguments(&configArgs, argc, argv);
 
-	int errflg = 0;
-	char * carg;
-	int cflag = 0;
-
-	int c;
-	extern char * optarg;
-	extern int optind, opterr;
-	char * progname = argv[0];
-
-	while ((c = getopt(argc , argv, "abc:")) != -1)
-		switch (c) {
-		case 'a':
-			puts("option a");
-			break;
-		case 'b':
-			puts("option b");
-			break;
-		case 'c':
-			cflag++;
-			puts("option c");
-			carg = optarg;
-			break;
-		case '?':
-			errflg++;
-			break;
-		}
-	if (errflg)
-		usage(progname);
-	if(cflag)
-		printf("%s\n", carg);
-
+	CCifar10* cifar10_data = get_cifar10_data("./bin/cifar-10-batches-bin");
+	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
 
 //    if (argc == 3 && strcmp(argv[1], "-test_file") == 0 )
 //    {
@@ -287,7 +356,7 @@ int main(int argc, char **argv)
 //    }
 
 
-	// return train_test();
-	return main_test();
+	return train_test(cifar10_data, &configArgs);
+	//return main_test();
 
 }
