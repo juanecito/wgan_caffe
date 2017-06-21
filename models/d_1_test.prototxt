@@ -5,7 +5,7 @@ layer {
   type: "Input"
   top: "data"
 #  top: "label"
-  transform_param { mean_file: "./mean.binaryproto" }
+#  transform_param { mean_file: "./mean.binaryproto" }
   input_param { shape: { dim: 1 dim: 3 dim: 32 dim: 32 } }
 #  memory_data_param { batch_size: 1 channels: 3 height: 32 width: 32 }
 }
