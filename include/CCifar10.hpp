@@ -190,7 +190,14 @@ class CCifar10
 		void show_train_img(unsigned int batch_index, unsigned int img_index);
 		void show_test_img(unsigned int img_index);
 		void show_img(uint8_t* img, size_t img_size);
-
+		static void print_cifar10_labels(void)
+		{
+			for (auto it : CCifar10::cifar10_labels)
+			{
+				std::cout << "(" << (int)(it.first) << ":" << it.second << ") ";
+			}
+			std::cout << std::endl;
+		}
 
 		const static unsigned int cifar10_imgs_batch_s = 10000;
 		const static unsigned int cifar10_train_batch_s = 5;

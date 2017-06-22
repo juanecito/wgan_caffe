@@ -310,11 +310,6 @@ CCifar10* get_cifar10_data(const std::string& cifar_path)
 	cifar10->load_train_batchs();
 	cifar10->load_test_batchs();
 
-	//--------------------------------------------------------------------------
-	// Test RGB image from cifar10
-	//cifar10.show_train_img(3, 1500);
-	//--------------------------------------------------------------------------
-
 	return cifar10;
 }
 

@@ -261,7 +261,9 @@ int train_test(CCifar10* cifar10, struct S_ConfigArgs* configArgs)
 	float *data = input->mutable_cpu_data();
 	const int n = input->count();
 
-	memcpy(data, test_imgs + 3072 , 3 * 32 * 32 * sizeof(float));
+	unsigned int img_index = 1234;
+
+	memcpy(data, test_imgs + (img_index * 3072) , 3 * 32 * 32 * sizeof(float));
 
 	net_final.Forward();
 
@@ -309,6 +311,12 @@ int train_test(CCifar10* cifar10, struct S_ConfigArgs* configArgs)
 				}
 	std::cout << std::endl;
 
+
+	//--------------------------------------------------------------------------
+	// Test RGB image from cifar10
+	CCifar10::print_cifar10_labels();
+	cifar10->show_test_img(img_index);
+	//--------------------------------------------------------------------------
 
 	return 0;
 }
