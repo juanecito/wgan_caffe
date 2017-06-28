@@ -13,7 +13,9 @@
 #include <map>
 #include <string>
 
+
 #include <cuda.h>
+#include <functional>
 
 /**
  *
@@ -49,6 +51,7 @@ struct S_Cifar10_img
  */
 class CCifar10
 {
+
 	public:
 
 		CCifar10();
@@ -118,7 +121,15 @@ class CCifar10
 		void get_train_batch_img(unsigned int batch_index, T** imgs);
 
 		template <typename T>
+		void get_train_batch_img(unsigned int batch_index, T** imgs,
+						std::vector<std::function<T**(T**)>>& vector_transf);
+
+		template <typename T>
 		unsigned int get_all_train_batch_img(T** imgs);
+
+		template <typename T>
+		unsigned int get_all_train_batch_img(T** imgs,
+						std::vector<std::function<T**(T**)>>& vector_transf);
 
 		template <typename T>
 		unsigned int get_all_train_batch_img_rgb(T** imgs);
@@ -173,6 +184,7 @@ class CCifar10
 
 		template <typename T>
 		void get_test_labels(T** t_labels);
+
 		template <typename T>
 		unsigned int get_all_test_labels(T** t_labels);
 		//----------------------------------------------------------------------
@@ -253,6 +265,37 @@ void CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
 	*imgs = (T*)(ori_imgs);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+void CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs,
+				std::vector<std::function<T**(T**)>>& vector_transf)
+{
+	this->get_train_batch_img(batch_index, imgs);
+
+	if (vector_transf.empty()) return;
+
+	T** imgs_transf = imgs;
+	for (auto it_fn : vector_transf)
+	{
+		imgs_transf = it_fn(imgs_transf);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_train_batch_img(T** imgs,
+				std::vector<std::function<T**(T**)>>& vector_transf)
+{
+	this->get_all_train_batch_img(imgs);
+
+	if (vector_transf.empty()) return;
+
+	T** imgs_transf = imgs;
+	for (auto it_fn : vector_transf)
+	{
+		imgs_transf = it_fn(imgs_transf);
+	}
+}
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 unsigned int CCifar10::get_all_train_batch_img(T** imgs)

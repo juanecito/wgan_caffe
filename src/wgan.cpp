@@ -45,6 +45,30 @@
 
 #include "CCifar10.hpp"
 
+
+////////////////////////////////////////////////////////////////////////////////
+void scale(unsigned int batch_count, unsigned int channels,
+			unsigned int width, unsigned int height, float** data,
+			unsigned int final_width, unsigned int final_height)
+{
+	unsigned int data_count = batch_count * channels * width * height;
+	unsigned int new_data_count = batch_count * channels * final_width * final_height;
+	float* tranf_data = new float[new_data_count];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void norm(unsigned int batch_count, unsigned int channels,
+			unsigned int width, unsigned int height, float** data)
+{
+	unsigned int data_count = batch_count * channels * width * height;
+
+	for (unsigned int uiI = 0; uiI < data_count; uiI++)
+	{
+		(*data)[uiI] /= 255.0;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /*! \brief Timer */
 class Timer {
   using Clock = std::chrono::high_resolution_clock;
