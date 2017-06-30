@@ -350,6 +350,7 @@ int main(int argc, char **argv)
 //        return 0;
 //    }
 
+	cifar10_data->show_test_img(1200);
 
 	return train_test(cifar10_data, &configArgs);
 	//return main_test();

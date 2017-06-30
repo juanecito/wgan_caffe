@@ -118,34 +118,38 @@ class CCifar10
 		 * @return
 		 */
 		template <typename T>
-		void get_train_batch_img(unsigned int batch_index, T** imgs);
+		unsigned int __attribute__((warn_unused_result))
+			get_train_batch_img(unsigned int batch_index, T** imgs);
 
 		template <typename T>
-		void get_train_batch_img(unsigned int batch_index, T** imgs,
-						std::vector<std::function<T**(T**)>>& vector_transf);
+		unsigned int __attribute__((warn_unused_result))
+			get_train_batch_img(unsigned int batch_index, T** imgs,
+						std::vector<std::function<unsigned int(T**)>>& vector_transf);
 
 		template <typename T>
 		unsigned int get_all_train_batch_img(T** imgs);
 
 		template <typename T>
-		unsigned int get_all_train_batch_img(T** imgs,
-						std::vector<std::function<T**(T**)>>& vector_transf);
+		unsigned int __attribute__((warn_unused_result))
+			get_all_train_batch_img(T** imgs,
+						std::vector<std::function<unsigned int(T**)>>& vector_transf);
 
 		template <typename T>
-		unsigned int get_all_train_batch_img_rgb(T** imgs);
+		unsigned int __attribute__((warn_unused_result))
+			get_all_train_batch_img_rgb(T** imgs);
 
 		/**
 		 *
 		 * @return
 		 */
 		template <typename T>
-		void get_test_batch_img(T** imgs);
+		unsigned int __attribute__((warn_unused_result)) get_test_batch_img(T** imgs);
 
 		template <typename T>
-		unsigned int get_all_test_batch_img(T** imgs);
+		unsigned int __attribute__((warn_unused_result)) get_all_test_batch_img(T** imgs);
 
 		template <typename T>
-		unsigned int get_all_test_batch_img_rgb(T** imgs);
+		unsigned int __attribute__((warn_unused_result)) get_all_test_batch_img_rgb(T** imgs);
 		//----------------------------------------------------------------------
 		// Get images with label, as we can find in cifar10 files
 		/**
@@ -248,7 +252,7 @@ class CCifar10
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
-void CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
+unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
 {
 	struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [cifar10_imgs_batch_s];
 	struct S_Cifar10_label_img* ori_imgs = ori_train_batchs_.at(batch_index).get();
@@ -263,39 +267,44 @@ void CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
 		}
 	}
 	*imgs = (T*)(ori_imgs);
+
+	return cifar10_imgs_batch_s;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
-void CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs,
-				std::vector<std::function<T**(T**)>>& vector_transf)
+unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs,
+				std::vector<std::function<unsigned int(T**)>>& vector_transf)
 {
-	this->get_train_batch_img(batch_index, imgs);
+	unsigned int count = this->get_train_batch_img(batch_index, imgs);
 
-	if (vector_transf.empty()) return;
+	if (vector_transf.empty()) return 0;
 
-	T** imgs_transf = imgs;
 	for (auto it_fn : vector_transf)
 	{
-		imgs_transf = it_fn(imgs_transf);
+		count = it_fn(imgs);
 	}
+
+	return count;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 unsigned int CCifar10::get_all_train_batch_img(T** imgs,
-				std::vector<std::function<T**(T**)>>& vector_transf)
+				std::vector<std::function<unsigned int(T**)>>& vector_transf)
 {
-	this->get_all_train_batch_img(imgs);
+	unsigned int count = this->get_all_train_batch_img(imgs);
 
-	if (vector_transf.empty()) return;
+	if (vector_transf.empty()) return 0;
 
-	T** imgs_transf = imgs;
 	for (auto it_fn : vector_transf)
 	{
-		imgs_transf = it_fn(imgs_transf);
+		count = it_fn(imgs);
 	}
+
+	return count;
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 unsigned int CCifar10::get_all_train_batch_img(T** imgs)
@@ -357,7 +366,7 @@ unsigned int CCifar10::get_all_train_batch_img_rgb(T** imgs)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
-void CCifar10::get_test_batch_img(T** imgs)
+unsigned int CCifar10::get_test_batch_img(T** imgs)
 {
 	struct S_Cifar10_img<T>* tmp_img = new struct S_Cifar10_img<T> [cifar10_imgs_batch_s];
 	struct S_Cifar10_label_img* ori_imgs = ori_test_batchs_.at(0).get();
@@ -372,6 +381,8 @@ void CCifar10::get_test_batch_img(T** imgs)
 		}
 	}
 	*imgs = (T*)(ori_imgs);
+
+	return cifar10_imgs_batch_s;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

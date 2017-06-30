@@ -42,6 +42,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include "CCifar10.hpp"
 
@@ -54,6 +55,28 @@ void scale(unsigned int batch_count, unsigned int channels,
 	unsigned int data_count = batch_count * channels * width * height;
 	unsigned int new_data_count = batch_count * channels * final_width * final_height;
 	float* tranf_data = new float[new_data_count];
+
+	cv::Size size(final_width, final_height);
+
+	unsigned int size_img_by_channel = width * height;
+	unsigned int size_img = width * height * channels;
+
+	unsigned int final_size_img_by_channel = final_width * final_height;
+	unsigned int final_size_img = final_width * final_height * channels;
+
+	for (unsigned int uiI = 0; uiI < batch_count; uiI++)
+	{
+		for (unsigned int c = 0; c < channels; c++)
+		{
+			cv::Mat img_ori(height, width, CV_32FC1,
+				data + (uiI * size_img) + c * size_img_by_channel);
+			cv::Mat img_final(final_height, final_width, CV_32FC1,
+				tranf_data + (uiI * final_size_img) + c * final_size_img_by_channel);
+			cv::resize(img_ori, img_final, size);//resize image
+		}
+	}
+	delete[] *data;
+	*data = tranf_data;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,8 +114,14 @@ class Timer {
   Clock::time_point start_, end_;
 };
 
-int main_test(void)
+int main_test(CCifar10* cifar10_data)
 {
+
+	auto fn_scale_64 = [](float** data){scale(CCifar10::cifar10_imgs_batch_s, 3,
+			32, 32, data, 64, 64);};
+
+	auto fn_norm = [](float** data){ norm(CCifar10::cifar10_imgs_batch_s, 3, 64, 64, data);};
+
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
 	caffe::Net<float> net("./models/g.prototxt", caffe::Phase::TEST);
@@ -100,7 +129,7 @@ int main_test(void)
 	//  caffe::Profiler *profiler = caffe::Profiler::Get();
 	//  profiler->TurnON();
 	//  profiler->ScopeStart("wgan");
-	// random noise
+	//  random noise
 	srand(time(NULL));
 	std::random_device rd;
 	std::mt19937 gen(rd());

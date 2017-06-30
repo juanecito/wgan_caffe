@@ -225,10 +225,12 @@ void CCifar10::show_img(uint8_t* img, size_t img_size)
 	const int height = 32;
 	const int width = 32;
 
-	// CV_8UC3 -> RGB
+	// CV_8UC3 -> RGB 0 - 255
+	// CV_8SC3 -> RGB -127 - 127
+	int type = CV_8UC3;
 
-	cv::Mat canvas2(height, width, CV_8UC3 , img);
-	cv::Mat canvas3(64, 64, CV_8UC3);
+	cv::Mat canvas2(height, width, type , img);
+	cv::Mat canvas3(64, 64, type);
 	cv::Size size(64, 64);//the dst image size,e.g.100x100
 	cv::resize(canvas2, canvas3, size, 2.0, 2.0, cv::INTER_CUBIC);//resize image
 
