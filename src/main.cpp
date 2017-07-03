@@ -44,12 +44,13 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include "CCifar10.hpp"
 
 int train_test(CCifar10* cifar10_data, struct S_ConfigArgs* configArgs);
 
-int main_test(void);
+int main_test(CCifar10* cifar10_data);
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -350,9 +351,9 @@ int main(int argc, char **argv)
 //        return 0;
 //    }
 
-	cifar10_data->show_test_img(1200);
+//	cifar10_data->show_test_img(1200);
+	return main_test(cifar10_data);
 
-	return train_test(cifar10_data, &configArgs);
-	//return main_test();
+//	return train_test(cifar10_data, &configArgs);
 
 }
