@@ -193,13 +193,9 @@ void* d_thread_fun(void* interSolverData)
 	dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
 	dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
 
-	const caffe::LayerParameter param = dataLayer_trainnet->layer_param();
-	desc_network(*(solver->net().get()));
-	param.PrintDebugString();
-
 	//--------------------------------------------------------------------------
 	//solver->Solve();
-	solver->Step(10);
+	solver->Step(1);
 	//--------------------------------------------------------------------------
 
 	return nullptr;
@@ -235,11 +231,9 @@ void* g_thread_fun(void* interSolverData)
 	float* data = input->mutable_cpu_data();
 	memcpy(data, ps_interSolverData->z_data_, 64 * 100 * sizeof(float));
 
-	desc_network(*(solver->net().get()));
-
 	//--------------------------------------------------------------------------
 	//solver->Solve();
-	solver->Step(10);
+	solver->Step(1);
 	//--------------------------------------------------------------------------
 
 	return nullptr;
