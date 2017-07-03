@@ -124,7 +124,7 @@ class CCifar10
 		template <typename T>
 		unsigned int __attribute__((warn_unused_result))
 			get_train_batch_img(unsigned int batch_index, T** imgs,
-						std::vector<std::function<unsigned int(T**)>>& vector_transf);
+						const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf);
 
 		template <typename T>
 		unsigned int get_all_train_batch_img(T** imgs);
@@ -132,7 +132,7 @@ class CCifar10
 		template <typename T>
 		unsigned int __attribute__((warn_unused_result))
 			get_all_train_batch_img(T** imgs,
-						std::vector<std::function<unsigned int(T**)>>& vector_transf);
+						const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf);
 
 		template <typename T>
 		unsigned int __attribute__((warn_unused_result))
@@ -147,6 +147,10 @@ class CCifar10
 
 		template <typename T>
 		unsigned int __attribute__((warn_unused_result)) get_all_test_batch_img(T** imgs);
+
+		template <typename T>
+		unsigned int __attribute__((warn_unused_result)) get_all_test_batch_img(T** imgs,
+						const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf);
 
 		template <typename T>
 		unsigned int __attribute__((warn_unused_result)) get_all_test_batch_img_rgb(T** imgs);
@@ -274,15 +278,13 @@ unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs,
-				std::vector<std::function<unsigned int(T**)>>& vector_transf)
+				const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf)
 {
 	unsigned int count = this->get_train_batch_img(batch_index, imgs);
 
-	if (vector_transf.empty()) return 0;
-
 	for (auto it_fn : vector_transf)
 	{
-		count = it_fn(imgs);
+		count = it_fn(imgs, count);
 	}
 
 	return count;
@@ -291,15 +293,13 @@ unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs,
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
 unsigned int CCifar10::get_all_train_batch_img(T** imgs,
-				std::vector<std::function<unsigned int(T**)>>& vector_transf)
+				const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf)
 {
-	unsigned int count = this->get_all_train_batch_img(imgs);
-
-	if (vector_transf.empty()) return 0;
+	unsigned int count = this->get_all_train_batch_img<T>(imgs);
 
 	for (auto it_fn : vector_transf)
 	{
-		count = it_fn(imgs);
+		count = it_fn(imgs, count);
 	}
 
 	return count;
@@ -411,6 +411,21 @@ unsigned int CCifar10::get_all_test_batch_img(T** imgs)
 	}
 
 	*imgs = (T*)(tmp_img);
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int CCifar10::get_all_test_batch_img(T** imgs,
+				const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf)
+{
+	unsigned int count = this->get_all_test_batch_img<T>(imgs);
+
+	for (auto it_fn : vector_transf)
+	{
+		count = it_fn(imgs, count);
+	}
 
 	return count;
 }
