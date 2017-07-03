@@ -18,7 +18,7 @@ CXX_FLAGS_RELEASE := -O3
 
 INC := -I$(INC_DIR)
 
-LIBS := -lopencv_core -lcaffe -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc
+LIBS := -lopencv_core -lcaffe -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
 
 CCFILES := $(shell ls -1 ./src/*.cpp 2>/dev/null)
 
