@@ -17,10 +17,13 @@ layer {
   {
     batch_size: 100
     channels: 3
-    height: 32
-    width: 32 
+    height: 64
+    width: 64 
   }
 }
+
+
+# Torch (initial.conv.3-64): Conv2d(3, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv1"
   type: "Convolution"
@@ -33,45 +36,29 @@ layer {
     lr_mult: 2
   }
   convolution_param {
-    num_output: 32
-    pad: 2
-    kernel_size: 5
-    stride: 1
-  }
-}
-layer {
-  name: "pool1"
-  type: "Pooling"
-  bottom: "conv1"
-  top: "pool1"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
+    num_output: 64
+    pad: 1
+    kernel_size: 4
     stride: 2
   }
 }
+
+# Torch LeakyReLU (0.2, inplace)
 layer {
   name: "relu1"
   type: "ReLU"
-  bottom: "pool1"
-  top: "pool1"
-}
-layer {
-  name: "norm1"
-  type: "LRN"
-  bottom: "pool1"
-  top: "norm1"
-  lrn_param {
-    local_size: 3
-    alpha: 5e-05
-    beta: 0.75
-    norm_region: WITHIN_CHANNEL
+  bottom: "conv1"
+  top: "conv1"
+  relu_param {
+    negative_slope: 0.2
   }
 }
+
+# Torch (pyramid.64-128.conv): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv2"
   type: "Convolution"
-  bottom: "norm1"
+  bottom: "conv1"
   top: "conv2"
   param {
     lr_mult: 1
@@ -80,90 +67,136 @@ layer {
     lr_mult: 2
   }
   convolution_param {
-    num_output: 32
-    pad: 2
-    kernel_size: 5
-    stride: 1
+    num_output: 128
+    pad: 1
+    kernel_size: 4
+    stride: 2
   }
 }
+
+# Torch (pyramid.128.batchnorm): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True)
+layer {
+  name: "norm1"
+  type: "BatchNorm"
+  bottom: "conv2"
+  top: "norm1"
+  batch_norm_param {
+    eps: 1e-05
+  }
+}
+
+# Torch LeakyReLU (0.2, inplace)
 layer {
   name: "relu2"
   type: "ReLU"
-  bottom: "conv2"
-  top: "conv2"
-}
-layer {
-  name: "pool2"
-  type: "Pooling"
-  bottom: "conv2"
-  top: "pool2"
-  pooling_param {
-    pool: AVE
-    kernel_size: 3
-    stride: 2
+  bottom: "norm1"
+  top: "norm1"
+  relu_param {
+    negative_slope: 0.2
   }
 }
-layer {
-  name: "norm2"
-  type: "LRN"
-  bottom: "pool2"
-  top: "norm2"
-  lrn_param {
-    local_size: 3
-    alpha: 5e-05
-    beta: 0.75
-    norm_region: WITHIN_CHANNEL
-  }
-}
+
+# Torch (pyramid.128-256.conv): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv3"
   type: "Convolution"
-  bottom: "norm2"
+  bottom: "norm1"
   top: "conv3"
-  convolution_param {
-    num_output: 64
-    pad: 2
-    kernel_size: 5
-    stride: 1
-  }
-}
-layer {
-  name: "relu3"
-  type: "ReLU"
-  bottom: "conv3"
-  top: "conv3"
-}
-layer {
-  name: "pool3"
-  type: "Pooling"
-  bottom: "conv3"
-  top: "pool3"
-  pooling_param {
-    pool: AVE
-    kernel_size: 3
-    stride: 2
-  }
-}
-layer {
-  name: "ip1"
-  type: "InnerProduct"
-  bottom: "pool3"
-  top: "ip1"
   param {
     lr_mult: 1
-    decay_mult: 250
   }
   param {
     lr_mult: 2
-    decay_mult: 0
   }
-  inner_product_param {
-    num_output: 10
+  convolution_param {
+    num_output: 256
+    pad: 1
+    kernel_size: 4
+    stride: 2
   }
 }
+
+# Torch (pyramid.256.batchnorm): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True)
 layer {
-  name: "prob"
-  type: "Softmax"
-  bottom: "ip1"
-  top: "prob"
+  name: "norm2"
+  type: "BatchNorm"
+  bottom: "conv3"
+  top: "norm2"
+  batch_norm_param {
+    eps: 1e-05
+  }
 }
+
+# Torch LeakyReLU (0.2, inplace)
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "norm2"
+  top: "norm2"
+  relu_param {
+    negative_slope: 0.2
+  }
+}
+
+# Torch (pyramid.256-512.conv): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+layer {
+  name: "conv4"
+  type: "Convolution"
+  bottom: "norm2"
+  top: "conv4"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 512
+    pad: 1
+    kernel_size: 4
+    stride: 2
+  }
+}
+
+# Torch (pyramid.512.batchnorm): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True)
+layer {
+  name: "norm3"
+  type: "BatchNorm"
+  bottom: "conv4"
+  top: "norm3"
+  batch_norm_param {
+    eps: 1e-05
+  }
+}
+
+# Torch LeakyReLU (0.2, inplace)
+layer {
+  name: "relu4"
+  type: "ReLU"
+  bottom: "norm3"
+  top: "norm3"
+  relu_param {
+    negative_slope: 0.2
+  }
+}
+
+# Torch (final.512-1.conv): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), bias=False)
+layer {
+  name: "conv5"
+  type: "Convolution"
+  bottom: "norm3"
+  top: "conv5"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 1
+    pad: 1
+    kernel_size: 4
+    stride: 2
+  }
+}
+
