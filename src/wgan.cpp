@@ -132,6 +132,34 @@ struct S_InterSolverData
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+class CClampFunctor: public caffe::Net<T>::Callback
+{
+	public:
+
+		CClampFunctor(caffe::Net<T>& net):net_(net){}
+
+	protected:
+
+		virtual void run(int layer)
+		{
+			std::cout << "layer: " << layer << std::endl;
+//			std::cout << net_.learnable_params_.size() << std::endl;
+//			std::cout << net_.params_lr_.size() << std::endl;
+			std::cout << "hola" << std::endl;
+		}
+
+		virtual ~CClampFunctor(){}
+
+		friend class caffe::Net<T>;
+
+	private:
+
+		caffe::Net<T>& net_;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
 void get_data_from_cifar10(CCifar10* cifar10,
 		float** train_labels, float** test_labels,
 		float** train_imgs, float** test_imgs,
@@ -195,7 +223,10 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 	//solver->Solve();
-	solver->Step(1);
+	//solver->Step(1);
+	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*(solver->net().get()));
+	solver->net()->add_before_forward(clampFunctor);
+	solver->net()->Forward();
 	//--------------------------------------------------------------------------
 
 	return nullptr;
@@ -233,7 +264,8 @@ void* g_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 	//solver->Solve();
-	solver->Step(1);
+	//solver->Step(1);
+	solver->net()->Forward();
 	//--------------------------------------------------------------------------
 
 	return nullptr;
