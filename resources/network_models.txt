@@ -2,6 +2,10 @@
 
 to process cifar10 in python torch
 
+python ./main.py --dataset cifar10 --dataroot ./cifar10_data
+Namespace(Diters=5, adam=False, batchSize=64, beta1=0.5, clamp_lower=-0.01, clamp_upper=0.01, cuda=False, dataroot='./cifar10_data', dataset='cifar10', experiment=None, imageSize=64, lrD=5e-05, lrG=5e-05, mlp_D=False, mlp_G=False, n_extra_layers=0, nc=3, ndf=64, netD='', netG='', ngf=64, ngpu=1, niter=25, noBN=False, nz=100, workers=2)
+Random Seed:  7652
+Downloading http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz to ./cifar10_data/cifar-10-python.tar.gz
 DCGAN_G (
   (main): Sequential (
     (initial.100-512.convt): ConvTranspose2d(100, 512, kernel_size=(4, 4), stride=(1, 1), bias=False)
@@ -36,3 +40,4 @@ DCGAN_D (
     (final.512-1.conv): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), bias=False)
   )
 )
+
