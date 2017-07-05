@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <iostream>
 #include <functional>
+#include <vector>
 
 #include <pthread.h>
 
@@ -137,16 +138,17 @@ class CClampFunctor: public caffe::Net<T>::Callback
 {
 	public:
 
-		CClampFunctor(caffe::Net<T>& net):net_(net){}
+		CClampFunctor(caffe::Net<T>& net, T clamp_lower,T clamp_upper):
+			net_(net), clamp_lower_(clamp_lower), clamp_upper_(clamp_upper){}
 
 	protected:
 
 		virtual void run(int layer)
 		{
 			std::cout << "layer: " << layer << std::endl;
-//			std::cout << net_.learnable_params_.size() << std::endl;
-//			std::cout << net_.params_lr_.size() << std::endl;
-			std::cout << "hola" << std::endl;
+			std::vector<caffe::Blob<T>*>& learnable_params =
+				const_cast<std::vector<caffe::Blob<T>*>& >(net_.learnable_params());
+			this->clamp(learnable_params.at(layer));
 		}
 
 		virtual ~CClampFunctor(){}
@@ -155,7 +157,22 @@ class CClampFunctor: public caffe::Net<T>::Callback
 
 	private:
 
+		void clamp(caffe::Blob<T>* blob)
+		{
+			T* data = blob->mutable_cpu_data();
+			unsigned int count = blob->count();
+
+			for (unsigned int uiI = 0; uiI < count; uiI++)
+			{
+				if (data[uiI] < clamp_lower_){ data[uiI] = clamp_lower_; }
+				else if (data[uiI] > clamp_upper_){ data[uiI] = clamp_upper_; }
+			}
+		}
+
 		caffe::Net<T>& net_;
+
+		T clamp_lower_;
+		T clamp_upper_;
 };
 
 
@@ -224,7 +241,8 @@ void* d_thread_fun(void* interSolverData)
 	//--------------------------------------------------------------------------
 	//solver->Solve();
 	//solver->Step(1);
-	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*(solver->net().get()));
+	CClampFunctor<float>* clampFunctor =
+					new CClampFunctor<float>(*(solver->net().get()), -0.1, 0.1);
 	solver->net()->add_before_forward(clampFunctor);
 	solver->net()->Forward();
 	//--------------------------------------------------------------------------
