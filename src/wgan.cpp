@@ -235,8 +235,8 @@ void* d_thread_fun(void* interSolverData)
 	caffe::MemoryDataLayer<float> *dataLayer_testnet =
 		(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
 
-	dataLayer_trainnet->Reset(train_imgs, train_labels, count_train);
-	dataLayer_testnet->Reset(test_imgs, test_labels, count_test);
+	dataLayer_trainnet->Reset(train_imgs, train_labels, (count_train / (int)64) * 64);
+	dataLayer_testnet->Reset(test_imgs, test_labels, (count_test / (int)64) * 64);
 
 	//--------------------------------------------------------------------------
 	//solver->Solve();
@@ -244,7 +244,13 @@ void* d_thread_fun(void* interSolverData)
 	CClampFunctor<float>* clampFunctor =
 					new CClampFunctor<float>(*(solver->net().get()), -0.1, 0.1);
 	solver->net()->add_before_forward(clampFunctor);
-	solver->net()->Forward();
+
+	float loss = 0.0;
+	solver->net()->Forward(&loss);
+	std::cout << "loss: " << loss << std::endl;
+
+	solver->net()->Backward();
+	solver->net()->Update();
 	//--------------------------------------------------------------------------
 
 	return nullptr;
@@ -283,7 +289,9 @@ void* g_thread_fun(void* interSolverData)
 	//--------------------------------------------------------------------------
 	//solver->Solve();
 	//solver->Step(1);
-	solver->net()->Forward();
+	float loss = 0.0;
+	solver->net()->Forward(&loss);
+	std::cout << "loss: " << loss << std::endl;
 	//--------------------------------------------------------------------------
 
 	return nullptr;
