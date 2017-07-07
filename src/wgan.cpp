@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <iostream>
 #include <functional>
+#include <iomanip>
 #include <vector>
 
 #include <pthread.h>
@@ -230,13 +231,13 @@ void* d_thread_fun(void* interSolverData)
 	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
-	caffe::MemoryDataLayer<float> *dataLayer_trainnet =
-		(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("data").get());
-	caffe::MemoryDataLayer<float> *dataLayer_testnet =
-		(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
-
-	dataLayer_trainnet->Reset(train_imgs, train_labels, (count_train / (int)64) * 64);
-	dataLayer_testnet->Reset(test_imgs, test_labels, (count_test / (int)64) * 64);
+//	caffe::MemoryDataLayer<float> *dataLayer_trainnet =
+//		(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("data").get());
+//	caffe::MemoryDataLayer<float> *dataLayer_testnet =
+//		(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
+//
+//	dataLayer_trainnet->Reset(train_imgs, train_labels, (count_train / (int)64) * 64);
+//	dataLayer_testnet->Reset(test_imgs, test_labels, (count_test / (int)64) * 64);
 
 	//--------------------------------------------------------------------------
 	//solver->Solve();
@@ -249,7 +250,24 @@ void* d_thread_fun(void* interSolverData)
 	solver->net()->Forward(&loss);
 	std::cout << "loss: " << loss << std::endl;
 
+	auto input = solver->net()->blob_by_name("data");
+	auto input_label = solver->net()->blob_by_name("label");
+	input->Reshape({1, 3, 64, 64});
+	input_label->Reshape({1, 1, 1, 1});
 
+	float one = 1.0;
+	float mone = -1.0;
+
+	float* data = input->mutable_cpu_data();
+	float* data_label = input_label->mutable_cpu_data();
+	memcpy(data, train_imgs, 3 * 64 * 64 * sizeof(float));
+	memcpy(data_label, &one, 1 * sizeof(float));
+
+	for (unsigned int uiI = 0; uiI < 3 * 64 * 64; uiI++)
+	{
+		if (uiI % 20 == 0) std::cout << std::endl;
+		std::cout << data[uiI] << " ";
+	}
 
 	const std::vector<caffe::Blob<float>*>& output_blobs = solver->net()->output_blobs();
 
@@ -260,7 +278,7 @@ void* d_thread_fun(void* interSolverData)
 		for (unsigned int uiI = 0; uiI < count; uiI++)
 		{
 			if (uiI % 20 == 0) std::cout << std::endl;
-			std::cout << data[uiI] << " ";
+			std::cout << std::setprecision(10) << data[uiI] << " ";
 		}
 	}
 	solver->net()->Backward();
@@ -341,14 +359,14 @@ int main_test(CCifar10* cifar10_data)
 		return 1;
 	}
 
-	if ((iRC = pthread_create(&thread_g, nullptr, g_thread_fun, &s_interSolverData)) != 0)
-	{
-		std::cerr << "Error creating thread g " << std::endl;
-		return 1;
-	}
+//	if ((iRC = pthread_create(&thread_g, nullptr, g_thread_fun, &s_interSolverData)) != 0)
+//	{
+//		std::cerr << "Error creating thread g " << std::endl;
+//		return 1;
+//	}
 
 	pthread_join(thread_d, nullptr);
-	pthread_join(thread_g, nullptr);
+//	pthread_join(thread_g, nullptr);
 
 	delete[] s_interSolverData.z_data_;
 

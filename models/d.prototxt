@@ -1,25 +1,25 @@
 name: "net_d"
 layer {
   name: "data"
-  type: "MemoryData"
-  #type: "Input"
+# type: "MemoryData"
+  type: "Input"
   top: "data"
   top: "label"
-#  input_param {
-#  	shape: {
-#  		dim: 1
-#  		dim: 3
-#  		dim: 32
-#  		dim: 32
-#  	}
-#  }
-  memory_data_param 
-  {
-    batch_size: 64
-    channels: 3
-    height: 64
-    width: 64 
+  input_param {
+  	shape: {
+  		dim: 1
+  		dim: 3
+  		dim: 64
+  		dim: 64
+  	}
   }
+#  memory_data_param 
+#  {
+#    batch_size: 64
+#    channels: 3
+#    height: 64
+#    width: 64 
+#  }
 }
 
 #########################################################################################
@@ -198,7 +198,7 @@ layer {
     lr_mult: 2
   }
   convolution_param {
-    num_output: 512
+    num_output: 1
     pad: 0
     kernel_size: 4
     stride: 1
