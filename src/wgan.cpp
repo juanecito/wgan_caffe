@@ -249,6 +249,20 @@ void* d_thread_fun(void* interSolverData)
 	solver->net()->Forward(&loss);
 	std::cout << "loss: " << loss << std::endl;
 
+
+
+	const std::vector<caffe::Blob<float>*>& output_blobs = solver->net()->output_blobs();
+
+	for (auto it : output_blobs)
+	{
+		unsigned int count = it->count();
+		const float* data = it->cpu_data();
+		for (unsigned int uiI = 0; uiI < count; uiI++)
+		{
+			if (uiI % 20 == 0) std::cout << std::endl;
+			std::cout << data[uiI] << " ";
+		}
+	}
 	solver->net()->Backward();
 	solver->net()->Update();
 	//--------------------------------------------------------------------------
