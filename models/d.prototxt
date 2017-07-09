@@ -7,11 +7,12 @@ layer {
   top: "label"
   input_param {
   	shape: {
-  		dim: 1
+  		dim: 64
   		dim: 3
   		dim: 64
   		dim: 64
   	}
+  	shape: { dim: 64 dim: 1 dim: 1 dim: 1 }
   }
 #  memory_data_param 
 #  {
@@ -22,7 +23,7 @@ layer {
 #  }
 }
 
-#########################################################################################
+################################################################################
 # Torch (initial.conv.3-64): Conv2d(3, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv1"
@@ -40,10 +41,19 @@ layer {
     pad: 1
     kernel_size: 4
     stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
   }
 }
 
-#########################################################################################
+################################################################################
 # Torch LeakyReLU (0.2, inplace)
 layer {
   name: "relu1"
@@ -55,7 +65,7 @@ layer {
   }
 }
 
-#########################################################################################
+################################################################################
 # Torch (pyramid.64-128.conv): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv2"
@@ -73,6 +83,15 @@ layer {
     pad: 1
     kernel_size: 4
     stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
   }
 }
 
@@ -98,7 +117,7 @@ layer {
   }
 }
 
-#########################################################################################
+################################################################################
 # Torch (pyramid.128-256.conv): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv3"
@@ -116,6 +135,15 @@ layer {
     pad: 1
     kernel_size: 4
     stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
   }
 }
 
@@ -141,7 +169,7 @@ layer {
   }
 }
 
-#########################################################################################
+################################################################################
 # Torch (pyramid.256-512.conv): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
 layer {
   name: "conv4"
@@ -159,6 +187,15 @@ layer {
     pad: 1
     kernel_size: 4
     stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
   }
 }
 
@@ -184,7 +221,7 @@ layer {
   }
 }
 
-#########################################################################################
+################################################################################
 # Torch (final.512-1.conv): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), bias=False)
 layer {
   name: "conv5"
@@ -202,6 +239,56 @@ layer {
     pad: 0
     kernel_size: 4
     stride: 1
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
   }
 }
 
+#layer {
+#  name: "ip1"
+#  type: "InnerProduct"
+#  bottom: "norm3"
+#  top: "ip1"
+#  param {
+#    lr_mult: 1
+#    decay_mult: 250
+#  }
+#  param {
+#    lr_mult: 2
+#    decay_mult: 0
+#  }
+#  inner_product_param {
+#    num_output: 1
+#    weight_filler {
+#      type: "gaussian"
+#      std: 0.01
+#    }
+#    bias_filler {
+#      type: "constant"
+#    }
+#  }
+#}
+
+################################################################################
+#layer {
+#  name: "loss1"
+#  type: "EuclideanLoss"
+#  bottom: "conv5"
+#  bottom: "label"
+#  top: "loss1"
+#}
+
+layer {
+  name: "loss2"
+  type: "SoftmaxWithLoss"
+  bottom: "conv5"
+  bottom: "label"
+  top: "loss2"
+}
