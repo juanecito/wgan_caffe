@@ -51,6 +51,53 @@
 #include "CCifar10.hpp"
 
 static pthread_mutex_t solvers_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t solvers_cond = PTHREAD_COND_INITIALIZER;
+static pthread_barrier_t solvers_barrier;
+
+#define OWNER_D 0
+#define OWNER_G 1
+
+static int current_owner;
+
+////////////////////////////////////////////////////////////////////////////////
+void takeToken(int owner)
+{
+	/*
+	   Lock mutex and wait for signal. Note that the pthread_cond_wait
+	   routine will automatically and atomically unlock mutex while it waits.
+	 */
+	pthread_mutex_lock(&solvers_mutex);
+	while (owner != current_owner)
+	{
+		pthread_cond_wait(&solvers_cond, &solvers_mutex);
+		printf("watch_count(): thread %d Condition signal received.\n", owner);
+	}
+
+	printf("take token: thread %d.\n", owner);
+	pthread_mutex_unlock(&solvers_mutex);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void releaseToken(int owner)
+{
+	pthread_mutex_lock(&solvers_mutex);
+
+	/*
+    Check the value of count and signal waiting thread when condition is
+    reached.  Note that this occurs while mutex is locked.
+	 */
+	if (owner == current_owner)
+	{
+		current_owner += 1; current_owner %= 2;
+		pthread_cond_signal(&solvers_cond);
+		printf("start: thread %d.\n", owner);
+	}
+	printf("release token thread %d  unlocking mutex\n", owner);
+	pthread_mutex_unlock(&solvers_mutex);
+}
+
+
 
 template <typename T> void desc_network(caffe::Net<T>& net);
 
@@ -131,6 +178,9 @@ struct S_InterSolverData
 {
 	CCifar10* cifar10_;
 	float* z_data_;
+
+	caffe::Net<float>* net_d_;
+	caffe::Net<float>* net_g_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -208,6 +258,142 @@ void get_data_from_cifar10(CCifar10* cifar10,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void initialize_network_weights(caffe::Net<float>* net)
+{
+	const std::vector<std::string>& layer_names = net->layer_names();
+	std::vector<caffe::Blob<float>*>& learnable_params = const_cast<std::vector<caffe::Blob<float>*>&>(net->learnable_params());
+
+	srand(time(NULL));
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	std::normal_distribution<float> nd_conv(0.0, 0.001);
+	std::normal_distribution<float> nd_norm(1.0, 0.02);
+	std::normal_distribution<float> nd(0.0, 0.1);
+
+//	const int n = input->count();
+//	for (int i = 0; i < n; ++i) {
+//		data[i] = nd(gen);
+//	}
+
+	unsigned int layer_index = 0;
+
+	for (auto it_layer_name : layer_names)
+	{
+		std::cout << "Layer: " << it_layer_name << std::endl;
+		caffe::Blob<float>* blob = learnable_params.at(layer_index);
+		const int n = blob->count();
+		float* data = blob->mutable_cpu_data();
+
+		auto layer = const_cast<caffe::Layer<float>* >(net->layer_by_name(it_layer_name).get());
+		if (it_layer_name.substr(0, 4).compare("conv") == 0)
+		{
+			for (unsigned int i = 0; i < n; ++i) data[i] = nd_conv(gen);
+		}
+		else if (it_layer_name.substr(0, 4).compare("norm") == 0)
+		{
+			for (unsigned int i = 0; i < n; ++i) data[i] = nd_norm(gen);
+		}
+		else
+		{
+			for (unsigned int i = 0; i < n; ++i) data[i] = nd(gen);
+		}
+		layer_index++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<typename T>
+void show_blobs(caffe::Net<T>* net)
+{
+	const std::vector<std::string>& blobs_names = net->blob_names();
+
+	for (auto it : blobs_names)
+	{
+		std::cout << "=========================================================" << std::endl;
+		std::cout << it << std::endl;
+		auto blob = net->blob_by_name(it);
+
+		unsigned int count = blob->count();
+		const float* data = blob->cpu_data();
+		for (unsigned int uiI = 0; uiI < count; uiI++)
+		{
+			if (uiI % 100 == 0) std::cout << std::endl;
+			std::cout << std::setprecision(10) << data[uiI] << " ";
+		}
+		std::cout << std::endl << "=========================================================" << std::endl;
+		std::cout << std::endl << std::endl;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<typename T>
+void show_learneable_params(caffe::Net<T>* net)
+{
+	const std::vector<caffe::Blob<T>*>& learnable_params = net->learnable_params();
+
+	for (auto blob : learnable_params)
+	{
+		unsigned int count = blob->count();
+		const float* data = blob->cpu_data();
+		std::cout << "=========================================================" << std::endl;
+		for (unsigned int uiI = 0; uiI < count; uiI++)
+		{
+			if (uiI % 100 == 0) std::cout << std::endl;
+			std::cout << std::setprecision(10) << data[uiI] << " ";
+		}
+		std::cout << std::endl << "=========================================================" << std::endl;
+		std::cout << std::endl << std::endl;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template<typename T>
+void show_outputs_blobs(caffe::Net<T>* net)
+{
+	const std::vector<caffe::Blob<float>*>& output_blobs = net->output_blobs();
+
+	for (auto it_blob : output_blobs)
+	{
+		unsigned int count = it_blob->count();
+		const float* data = it_blob->cpu_data();
+		std::cout << "=========================================================" << std::endl;
+		for (unsigned int uiI = 0; uiI < count; uiI++)
+		{
+			if (uiI % 100 == 0) std::cout << std::endl;
+			std::cout << std::setprecision(10) << data[uiI] << " ";
+		}
+
+	}
+	std::cout << std::endl << "=========================================================" << std::endl;
+	std::cout << std::endl << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void show_img_CV_32FC1(unsigned int img_width, unsigned int img_height, float* img_data)
+{
+//	Test images
+	cv::Mat img(img_width, img_height, CV_32FC1, img_data);
+	cv::imshow("cifar10", img);
+	cv::waitKey();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void recalculateZ(float * z_data)
+{
+	srand(time(NULL));
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::normal_distribution<float> nd(0, 1);
+
+	unsigned int n = 64 * 100 * 1 * 1;
+	for (int i = 0; i < n; ++i)
+	{
+		z_data[i] = nd(gen);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void* d_thread_fun(void* interSolverData)
 {
 	S_InterSolverData* ps_interSolverData = (S_InterSolverData*)interSolverData;
@@ -227,12 +413,34 @@ void* d_thread_fun(void* interSolverData)
 
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
+	caffe::Caffe& inst_caffe = caffe::Caffe::Get();
+	std::cout << "------------ " << (void*)&inst_caffe << "-----------" << std::endl;
+
+	boost::shared_ptr<caffe::Net<float> > net_d;
+	bool is_solver = true;
+
 	caffe::SolverParameter solver_param;
-	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
-	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+	boost::shared_ptr<caffe::Solver<float> > solver;
+
+	if (is_solver)
+	{
+		caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
+		solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
+		net_d = solver->net();
+	}
+	else
+	{
+		net_d.reset(new caffe::Net<float>("./models/d.prototxt", caffe::Phase::TEST));
+	}
+
+
+	ps_interSolverData->net_d_ = net_d.get();
+	pthread_barrier_wait(&solvers_barrier);
+
+	//initialize_network_weights(net_d.get());
 
 //	caffe::MemoryDataLayer<float> *dataLayer_trainnet =
-//		(caffe::MemoryDataLayer<float> *) (solver->net()->layer_by_name("data").get());
+//		(caffe::MemoryDataLayer<float> *) (net_d->layer_by_name("data").get());
 //	caffe::MemoryDataLayer<float> *dataLayer_testnet =
 //		(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
 //
@@ -242,49 +450,78 @@ void* d_thread_fun(void* interSolverData)
 	//--------------------------------------------------------------------------
 	//solver->Solve();
 	//solver->Step(1);
-	CClampFunctor<float>* clampFunctor =
-					new CClampFunctor<float>(*(solver->net().get()), -0.1, 0.1);
-	solver->net()->add_before_forward(clampFunctor);
+//	CClampFunctor<float>* clampFunctor =
+//					new CClampFunctor<float>(*net_d), -0.1, 0.1);
+//	net_d->add_before_forward(clampFunctor);
 
-	float loss = 0.0;
-	solver->net()->Forward(&loss);
-	std::cout << "loss: " << loss << std::endl;
+	int batch_size = 64;
 
-	auto input = solver->net()->blob_by_name("data");
-	auto input_label = solver->net()->blob_by_name("label");
-	input->Reshape({1, 3, 64, 64});
-	input_label->Reshape({1, 1, 1, 1});
+	auto input = net_d->blob_by_name("data");
+	auto input_label = net_d->blob_by_name("label");
+	input->Reshape({batch_size, 3, 64, 64});
+	input_label->Reshape({batch_size, 1, 1, 1});
 
-	float one = 1.0;
-	float mone = -1.0;
+	float* ones = nullptr;
+	float* mones = nullptr;
 
-	float* data = input->mutable_cpu_data();
+	ones = new float [batch_size];
+	mones = new float [batch_size];
+
+	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
+	{
+		ones[uiI] = 1.0;
+		mones[uiI] = -1.0;
+	}
+
+	float* data_d = input->mutable_cpu_data();
 	float* data_label = input_label->mutable_cpu_data();
-	memcpy(data, train_imgs, 3 * 64 * 64 * sizeof(float));
-	memcpy(data_label, &one, 1 * sizeof(float));
 
-	for (unsigned int uiI = 0; uiI < 3 * 64 * 64; uiI++)
+	unsigned int d_iter = 50;
+	unsigned int main_it = 1000;
+
+	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
-		if (uiI % 20 == 0) std::cout << std::endl;
-		std::cout << data[uiI] << " ";
-	}
+		memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64), batch_size * 3 * 64 * 64 * sizeof(float));
+		memcpy(data_label, ones, batch_size * sizeof(float));
 
-	const std::vector<caffe::Blob<float>*>& output_blobs = solver->net()->output_blobs();
-
-	for (auto it : output_blobs)
-	{
-		unsigned int count = it->count();
-		const float* data = it->cpu_data();
-		for (unsigned int uiI = 0; uiI < count; uiI++)
+		// Discriminator and generator threads synchronization
+		takeToken(OWNER_D);
+		for (unsigned int uiJ = 0; uiJ < d_iter; uiJ++)
 		{
-			if (uiI % 20 == 0) std::cout << std::endl;
-			std::cout << std::setprecision(10) << data[uiI] << " ";
-		}
-	}
-	solver->net()->Backward();
-	solver->net()->Update();
-	//--------------------------------------------------------------------------
+			//------------------------------------------------------------------
+			// Train D with real
+			solver->Step(1);
 
+			std::cout << "=========================================================" << std::endl;
+			std::cout << "iteration " << uiI << " " << uiJ << std::endl;
+			show_outputs_blobs(net_d.get());
+
+			//------------------------------------------------------------------
+			// Train D with fake
+			auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
+			input_g->Reshape({64, 100, 1, 1});
+
+			recalculateZ(ps_interSolverData->z_data_);
+
+			float* data_g = input_g->mutable_cpu_data();
+			memcpy(data_g, ps_interSolverData->z_data_, 64 * 100 * sizeof(float));
+			ps_interSolverData->net_g_->Forward();
+
+
+			auto blob_output_g = ps_interSolverData->net_g_->blob_by_name("gconv5");
+
+			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
+			memcpy(data_label, mones, batch_size * sizeof(float));
+			solver->Step(1);
+
+		}
+		releaseToken(OWNER_D);
+
+	}
+
+	net_d.reset();
+	//--------------------------------------------------------------------------
+	pthread_barrier_wait(&solvers_barrier);
 	return nullptr;
 }
 
@@ -307,6 +544,8 @@ void* g_thread_fun(void* interSolverData)
 	//--------------------------------------------------------------------------
 
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+	caffe::Caffe& inst_caffe = caffe::Caffe::Get();
+	std::cout << "------------ " << (void*)&inst_caffe << "-----------" << std::endl;
 
 	caffe::SolverParameter solver_param;
 	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_g.prototxt", &solver_param);
@@ -318,6 +557,11 @@ void* g_thread_fun(void* interSolverData)
 	float* data = input->mutable_cpu_data();
 	memcpy(data, ps_interSolverData->z_data_, 64 * 100 * sizeof(float));
 
+	ps_interSolverData->net_g_ = solver->net().get();
+	pthread_barrier_wait(&solvers_barrier);
+
+
+
 	//--------------------------------------------------------------------------
 	//solver->Solve();
 	//solver->Step(1);
@@ -326,6 +570,8 @@ void* g_thread_fun(void* interSolverData)
 	std::cout << "loss: " << loss << std::endl;
 	//--------------------------------------------------------------------------
 
+
+	pthread_barrier_wait(&solvers_barrier);
 	return nullptr;
 }
 
@@ -338,18 +584,12 @@ int main_test(CCifar10* cifar10_data)
 	struct S_InterSolverData s_interSolverData;
 	s_interSolverData.cifar10_ = cifar10_data;
 
-	srand(time(NULL));
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::normal_distribution<float> nd(0, 1);
-	float *z_data = new float [64 * 100];
-	unsigned int n = 64 * 100 * 1 * 1;
-	for (int i = 0; i < n; ++i)
-	{
-		z_data[i] = nd(gen);
-	}
+	s_interSolverData.net_d_ = nullptr;
+	s_interSolverData.net_g_ = nullptr;
+	s_interSolverData.z_data_ = new float [64 * 100];
+	current_owner = OWNER_D;
 
-	s_interSolverData.z_data_ = z_data;
+	pthread_barrier_init(&solvers_barrier, nullptr, 2);
 
 	int iRC = 0;
 
@@ -359,14 +599,14 @@ int main_test(CCifar10* cifar10_data)
 		return 1;
 	}
 
-//	if ((iRC = pthread_create(&thread_g, nullptr, g_thread_fun, &s_interSolverData)) != 0)
-//	{
-//		std::cerr << "Error creating thread g " << std::endl;
-//		return 1;
-//	}
+	if ((iRC = pthread_create(&thread_g, nullptr, g_thread_fun, &s_interSolverData)) != 0)
+	{
+		std::cerr << "Error creating thread g " << std::endl;
+		return 1;
+	}
 
 	pthread_join(thread_d, nullptr);
-//	pthread_join(thread_g, nullptr);
+	pthread_join(thread_g, nullptr);
 
 	delete[] s_interSolverData.z_data_;
 
