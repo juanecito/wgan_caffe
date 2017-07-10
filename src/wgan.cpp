@@ -97,9 +97,49 @@ void releaseToken(int owner)
 	pthread_mutex_unlock(&solvers_mutex);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+void show_img_CV_32FC1(unsigned int img_width, unsigned int img_height, const float* img_data)
+{
+//	Test images
+	const cv::Mat img(img_width, img_height, CV_32FC1, (void*)img_data);
+	cv::imshow("cifar10", img);
+	cv::waitKey();
+}
 
+////////////////////////////////////////////////////////////////////////////////
+void show_grid_img_CV_32FC3(unsigned int img_width, unsigned int img_height, const float* img_data, unsigned int channels,
+			unsigned int grid_width, unsigned int grid_height)
+{
+	unsigned int img_count = grid_height * grid_width;
+	unsigned int img_size_per_channel = img_height * img_width;
+	unsigned int img_size = channels * img_size_per_channel;
 
-template <typename T> void desc_network(caffe::Net<T>& net);
+	unsigned int grid_img_count = img_count * img_size;
+
+	float* tranf_img_data = new float [grid_img_count];
+
+	for (unsigned int x = 0; x < grid_width; x++)
+	{
+		for (unsigned int y = 0; y < grid_height; y++)
+		{
+			unsigned int img_index = y * (grid_width * img_width * channels) + x * (img_width * channels);
+
+			for (unsigned int uiI = 0; uiI < img_size_per_channel; uiI++)
+			{
+				tranf_img_data[img_index * img_size + (uiI * channels)] = img_data[img_index * img_size + uiI];
+				tranf_img_data[img_index * img_size + (uiI * channels) + 1] = img_data[img_index * img_size + img_size_per_channel + uiI];
+				tranf_img_data[img_index * img_size + (uiI * channels) + 2] = img_data[img_index * img_size + 2 * img_size_per_channel + uiI];
+			}
+		}
+	}
+
+	const cv::Mat img(img_width * grid_width, img_height * grid_height, CV_32FC3, tranf_img_data);
+	cv::imshow("cifar10_generator", img);
+	cv::waitKey();
+
+	delete[] tranf_img_data;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 unsigned int scale(unsigned int batch_count, unsigned int channels,
@@ -370,15 +410,6 @@ void show_outputs_blobs(caffe::Net<T>* net)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void show_img_CV_32FC1(unsigned int img_width, unsigned int img_height, float* img_data)
-{
-//	Test images
-	cv::Mat img(img_width, img_height, CV_32FC1, img_data);
-	cv::imshow("cifar10", img);
-	cv::waitKey();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 void recalculateZ(float * z_data)
 {
 	srand(time(NULL));
@@ -484,6 +515,9 @@ void* d_thread_fun(void* interSolverData)
 		memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64), batch_size * 3 * 64 * 64 * sizeof(float));
 		memcpy(data_label, ones, batch_size * sizeof(float));
 
+		show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 8, 8);
+		show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 1, 1);
+
 		// Discriminator and generator threads synchronization
 		takeToken(OWNER_D);
 		for (unsigned int uiJ = 0; uiJ < d_iter; uiJ++)
@@ -509,6 +543,8 @@ void* d_thread_fun(void* interSolverData)
 
 
 			auto blob_output_g = ps_interSolverData->net_g_->blob_by_name("gconv5");
+
+			show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
 
 			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, mones, batch_size * sizeof(float));
