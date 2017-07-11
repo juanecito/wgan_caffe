@@ -3,6 +3,7 @@ layer {
     name: "data"
     type: "Input"
     top: "data"
+    top: "label"
     input_param {
         shape {
             dim: 64
@@ -10,6 +11,7 @@ layer {
             dim: 1
             dim: 1
         }
+  	shape: { dim: 64 dim: 1 dim: 1 dim: 1 }
     }
 }
 
@@ -245,3 +247,21 @@ layer {
     bottom: "gconv5"
     top: "gconv5"
 }
+
+################################################################################
+#layer {
+#  name: "loss1"
+#  type: "EuclideanLoss"
+#  bottom: "conv5"
+#  bottom: "label"
+#  top: "loss1"
+#}
+
+#layer {
+#  name: "loss2"
+#  type: "SoftmaxWithLoss"
+#  bottom: "gact5"
+#  bottom: "label"
+#  top: "loss2"
+#}
+

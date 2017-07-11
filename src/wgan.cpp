@@ -458,28 +458,14 @@ void* d_thread_fun(void* interSolverData)
 
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
-	caffe::Caffe& inst_caffe = caffe::Caffe::Get();
-	std::cout << "------------ " << (void*)&inst_caffe << "-----------" << std::endl;
-
-	boost::shared_ptr<caffe::Net<float> > net_d;
-	bool is_solver = true;
-
 	caffe::SolverParameter solver_param;
 	boost::shared_ptr<caffe::Solver<float> > solver;
 
-	if (is_solver)
-	{
-		caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
-		solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
-		net_d = solver->net();
-	}
-	else
-	{
-		net_d.reset(new caffe::Net<float>("./models/d.prototxt", caffe::Phase::TEST));
-	}
+	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
+	solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
+	caffe::Net<float>* net_d = ps_interSolverData->net_d_ = solver->net().get();
 
-	ps_interSolverData->net_d_ = net_d.get();
 	pthread_barrier_wait(&solvers_barrier);
 
 	//initialize_network_weights(net_d.get());
@@ -539,11 +525,10 @@ void* d_thread_fun(void* interSolverData)
 			//------------------------------------------------------------------
 			// Train D with real
 			solver->Step(1);
-
 			std::cout << "=========================================================" << std::endl;
 			std::cout << "iteration " << uiI << " " << uiJ << std::endl;
-			show_outputs_blobs(net_d.get());
-
+			show_outputs_blobs(net_d);
+			float errorD_real = 0.0;
 			//------------------------------------------------------------------
 			// Train D with fake
 			auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
@@ -552,9 +537,10 @@ void* d_thread_fun(void* interSolverData)
 			recalculateZ(ps_interSolverData->z_data_);
 
 			float* data_g = input_g->mutable_cpu_data();
-			memcpy(data_g, ps_interSolverData->z_data_, 64 * 100 * sizeof(float));
+			memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
 			ps_interSolverData->net_g_->Forward();
 
+			net_d->Backward();
 
 			auto blob_output_g = ps_interSolverData->net_g_->blob_by_name("gconv5");
 
@@ -562,14 +548,19 @@ void* d_thread_fun(void* interSolverData)
 
 			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, mones, batch_size * sizeof(float));
+
+			float errorD_fake = 0.0;
+
 			solver->Step(1);
+			show_outputs_blobs(net_d);
+
+			float errorD = 0.0;
 
 		}
 		releaseToken(OWNER_D);
 
 	}
 
-	net_d.reset();
 	//--------------------------------------------------------------------------
 	pthread_barrier_wait(&solvers_barrier);
 	return nullptr;
@@ -601,16 +592,56 @@ void* g_thread_fun(void* interSolverData)
 	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_g.prototxt", &solver_param);
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
-	auto input = solver->net()->blob_by_name("data");
-	input->Reshape({64, 100, 1, 1});
-
-	float* data = input->mutable_cpu_data();
-	memcpy(data, ps_interSolverData->z_data_, 64 * 100 * sizeof(float));
-
-	ps_interSolverData->net_g_ = solver->net().get();
+	caffe::Net<float>* net_g = ps_interSolverData->net_g_ = solver->net().get();
 	pthread_barrier_wait(&solvers_barrier);
 
+	float* ones = nullptr;
+	float* mones = nullptr;
 
+	int batch_size = 64;
+
+	ones = new float [batch_size];
+	mones = new float [batch_size];
+
+	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
+	{
+		ones[uiI] = 1.0;
+		mones[uiI] = -1.0;
+	}
+
+	unsigned int main_it = 1000;
+
+	for (unsigned int uiI = 0; uiI < main_it; uiI++)
+	{
+		takeToken(OWNER_G);
+
+		auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
+		input_g->Reshape({batch_size, 100, 1, 1});
+
+		recalculateZ(ps_interSolverData->z_data_);
+
+		float* data_g = input_g->mutable_cpu_data();
+		memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
+		net_g->Forward();
+
+		//----------------------------------------------------------------------
+		// Get Fake
+		auto blob_output_g = net_g->blob_by_name("gconv5");
+		show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
+
+		auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
+
+		memcpy(net_d_blob_data->mutable_cpu_data(), blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
+		ps_interSolverData->net_d_->Forward();
+
+		auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
+
+		auto blob_label_g = net_g->blob_by_name("label");
+		memcpy(blob_label_g->mutable_cpu_data(), ones, batch_size * sizeof(float));
+		solver->Step(1);
+
+		releaseToken(OWNER_G);
+	}
 
 	//--------------------------------------------------------------------------
 	//solver->Solve();
