@@ -515,8 +515,8 @@ void* d_thread_fun(void* interSolverData)
 		memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64), batch_size * 3 * 64 * 64 * sizeof(float));
 		memcpy(data_label, ones, batch_size * sizeof(float));
 
-		show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 8, 8);
-		show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 1, 1);
+		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 8, 8);
+		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 1, 1);
 
 		// Discriminator and generator threads synchronization
 		takeToken(OWNER_D);
@@ -526,7 +526,7 @@ void* d_thread_fun(void* interSolverData)
 			// Train D with real
 			solver->Step(1);
 			std::cout << "=========================================================" << std::endl;
-			std::cout << "iteration " << uiI << " " << uiJ << std::endl;
+			std::cout << "iteration D " << uiI << " " << uiJ << std::endl;
 			show_outputs_blobs(net_d);
 			float errorD_real = 0.0;
 			//------------------------------------------------------------------
@@ -544,7 +544,7 @@ void* d_thread_fun(void* interSolverData)
 
 			auto blob_output_g = ps_interSolverData->net_g_->blob_by_name("gconv5");
 
-			show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
+			// show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
 
 			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, mones, batch_size * sizeof(float));
@@ -614,6 +614,11 @@ void* g_thread_fun(void* interSolverData)
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
 		takeToken(OWNER_G);
+		//------------------------------------------------------------------
+		std::cout << "=========================================================" << std::endl;
+		std::cout << "iteration G " << uiI  << std::endl;
+		//------------------------------------------------------------------
+
 
 		auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 		input_g->Reshape({batch_size, 100, 1, 1});
@@ -627,7 +632,7 @@ void* g_thread_fun(void* interSolverData)
 		//----------------------------------------------------------------------
 		// Get Fake
 		auto blob_output_g = net_g->blob_by_name("gconv5");
-		show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
+		//show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
 
 		auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
 
