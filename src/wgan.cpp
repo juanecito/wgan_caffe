@@ -512,7 +512,8 @@ void* d_thread_fun(void* interSolverData)
 
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
-		memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64), batch_size * 3 * 64 * 64 * sizeof(float));
+		memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64),
+				batch_size * 3 * 64 * 64 * sizeof(float));
 		memcpy(data_label, ones, batch_size * sizeof(float));
 
 		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 8, 8);
@@ -558,7 +559,6 @@ void* d_thread_fun(void* interSolverData)
 
 		}
 		releaseToken(OWNER_D);
-
 	}
 
 	//--------------------------------------------------------------------------
