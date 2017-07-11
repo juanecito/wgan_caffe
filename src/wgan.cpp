@@ -118,20 +118,34 @@ void show_grid_img_CV_32FC3(unsigned int img_width, unsigned int img_height, con
 
 	float* tranf_img_data = new float [grid_img_count];
 
-	for (unsigned int x = 0; x < grid_width; x++)
+	for (unsigned int y_grid = 0; y_grid < grid_height; y_grid++)
 	{
-		for (unsigned int y = 0; y < grid_height; y++)
+		for (unsigned int x_grid = 0; x_grid < grid_width; x_grid++)
 		{
-			unsigned int img_index = y * (grid_width * img_width * channels) + x * (img_width * channels);
-
-			for (unsigned int uiI = 0; uiI < img_size_per_channel; uiI++)
+			for (unsigned int y_img = 0; y_img < img_height; y_img++)
 			{
-				tranf_img_data[img_index * img_size + (uiI * channels)] = img_data[img_index * img_size + uiI];
-				tranf_img_data[img_index * img_size + (uiI * channels) + 1] = img_data[img_index * img_size + img_size_per_channel + uiI];
-				tranf_img_data[img_index * img_size + (uiI * channels) + 2] = img_data[img_index * img_size + 2 * img_size_per_channel + uiI];
+				for (unsigned int x_img = 0; x_img < img_width; x_img++)
+				{
+					unsigned int tranf_img_data_index =
+								y_grid * grid_width * img_size +
+								y_img * grid_width * img_width * channels +
+								x_grid * (img_width * channels) +
+								x_img * channels;
+
+					unsigned int img_data_index = (y_grid * grid_width + x_grid) * img_size
+								+ y_img * img_width + x_img;
+
+					for (unsigned int c = 0; c < channels; c++)
+					{
+						tranf_img_data[tranf_img_data_index + c] = img_data[img_data_index + c * img_size_per_channel];
+					}
+
+				}
 			}
 		}
 	}
+
+
 
 	const cv::Mat img(img_width * grid_width, img_height * grid_height, CV_32FC3, tranf_img_data);
 	cv::imshow("cifar10_generator", img);
@@ -167,7 +181,7 @@ unsigned int scale(unsigned int batch_count, unsigned int channels,
 				*data + (uiI * size_img) + c * size_img_by_channel);
 			cv::Mat img_final(final_height, final_width, CV_32FC1,
 				tranf_data + (uiI * final_size_img) + c * final_size_img_by_channel);
-			cv::resize(img_ori, img_final, size, 2.0, 2.0, CV_INTER_LANCZOS4);//resize image
+			cv::resize(img_ori, img_final, size, 2.0, 2.0, CV_INTER_LINEAR);//resize image
 		}
 	}
 	delete[] *data;
