@@ -232,6 +232,7 @@ struct S_InterSolverData
 {
 	CCifar10* cifar10_;
 	float* z_data_;
+	float* z_fix_data_;
 
 	caffe::Net<float>* net_d_;
 	caffe::Net<float>* net_g_;
@@ -507,7 +508,7 @@ void* d_thread_fun(void* interSolverData)
 	float* data_d = input->mutable_cpu_data();
 	float* data_label = input_label->mutable_cpu_data();
 
-	unsigned int d_iter = 50;
+	unsigned int d_iter = 25;
 	unsigned int main_it = 1000;
 
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
@@ -530,6 +531,9 @@ void* d_thread_fun(void* interSolverData)
 			std::cout << "iteration D " << uiI << " " << uiJ << std::endl;
 			show_outputs_blobs(net_d);
 			float errorD_real = 0.0;
+			auto blob_errorD = net_d->blob_by_name("loss2");
+
+
 			//------------------------------------------------------------------
 			// Train D with fake
 			auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
@@ -625,6 +629,12 @@ void* g_thread_fun(void* interSolverData)
 
 		recalculateZ(ps_interSolverData->z_data_);
 
+		for (unsigned int uiJ = 0; uiJ < 100; uiJ++)
+		{
+			if (uiJ % 10 == 0) std::cout << std::endl;
+			std::cout << ps_interSolverData->z_data_[uiJ] << " ";
+		}
+
 		float* data_g = input_g->mutable_cpu_data();
 		memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
 		net_g->Forward();
@@ -637,13 +647,32 @@ void* g_thread_fun(void* interSolverData)
 		auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
 
 		memcpy(net_d_blob_data->mutable_cpu_data(), blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
+
 		ps_interSolverData->net_d_->Forward();
-
 		auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
+		memcpy(blob_output_d->mutable_cpu_data(), ones, batch_size * sizeof(float));
 
-		auto blob_label_g = net_g->blob_by_name("label");
-		memcpy(blob_label_g->mutable_cpu_data(), ones, batch_size * sizeof(float));
+		ps_interSolverData->net_d_->Backward();
+
+
+		memcpy(blob_output_g->mutable_cpu_data(), net_d_blob_data->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
+
 		solver->Step(1);
+
+		std::cout << std::endl << "-----------------------------------------" << std::endl;
+		for (unsigned int uiJ = 0; uiJ < 100; uiJ++)
+		{
+			if (uiJ % 10 == 0) std::cout << std::endl;
+			std::cout << blob_output_g->cpu_data()[uiJ] << " ";
+		}
+
+		if (uiI % 5 == 0)
+		{
+			memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
+			net_g->Forward();
+			show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
+		}
+
 
 		releaseToken(OWNER_G);
 	}
@@ -673,7 +702,10 @@ int main_test(CCifar10* cifar10_data)
 	s_interSolverData.net_d_ = nullptr;
 	s_interSolverData.net_g_ = nullptr;
 	s_interSolverData.z_data_ = new float [64 * 100];
+	s_interSolverData.z_fix_data_ = new float [64 * 100];
 	current_owner = OWNER_D;
+
+	recalculateZ(s_interSolverData.z_fix_data_ );
 
 	pthread_barrier_init(&solvers_barrier, nullptr, 2);
 
