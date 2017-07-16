@@ -5,7 +5,7 @@
 
 ################################################################################
 
-INC_DIR := ./include
+INC_DIR := -I./include -I../my_caffe/include
 SRC_DIR := ./src
 BIN_DIR := ./bin
 OBJ_DIR := ./obj
@@ -16,9 +16,9 @@ CXX_FLAGS_DEBUG := -g3 -O0
 
 CXX_FLAGS_RELEASE := -O3
 
-INC := -I$(INC_DIR)
+INC := $(INC_DIR)
 
-LIBS := -lopencv_core -lcaffe -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
+LIBS := -L ../my_caffe/build/lib -Wl,-Bdynamic -lcaffe -lopencv_core -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
 
 CCFILES := $(shell ls -1 ./src/*.cpp 2>/dev/null)
 
