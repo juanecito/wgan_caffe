@@ -40,6 +40,7 @@
 #include <caffe/layers/lrn_layer.hpp>
 #include <caffe/layers/inner_product_layer.hpp>
 #include <caffe/layers/softmax_layer.hpp>
+#include <caffe/layers/customizable_loss_layer.hpp>
 
 #include <caffe/solver.hpp>
 #include <caffe/sgd_solvers.hpp>
@@ -49,6 +50,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "CCifar10.hpp"
+#include "CCustomLossLayerBackwardGPU.hpp"
+
 
 static pthread_mutex_t solvers_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t solvers_cond = PTHREAD_COND_INITIALIZER;
@@ -58,6 +61,10 @@ static pthread_barrier_t solvers_barrier;
 #define OWNER_G 1
 
 static int current_owner;
+
+//------------------------------------------------------------------------------
+// Error in library libcaffe.so temporal fix
+template class caffe::SolverRegistry<float>;
 
 ////////////////////////////////////////////////////////////////////////////////
 void takeToken(int owner)
@@ -70,10 +77,10 @@ void takeToken(int owner)
 	while (owner != current_owner)
 	{
 		pthread_cond_wait(&solvers_cond, &solvers_mutex);
-		printf("watch_count(): thread %d Condition signal received.\n", owner);
+		//printf("watch_count(): thread %d Condition signal received.\n", owner);
 	}
 
-	printf("take token: thread %d.\n", owner);
+	//printf("take token: thread %d.\n", owner);
 	pthread_mutex_unlock(&solvers_mutex);
 
 }
@@ -91,10 +98,40 @@ void releaseToken(int owner)
 	{
 		current_owner += 1; current_owner %= 2;
 		pthread_cond_signal(&solvers_cond);
-		printf("start: thread %d.\n", owner);
+		//printf("start: thread %d.\n", owner);
 	}
-	printf("release token thread %d  unlocking mutex\n", owner);
+	//printf("release token thread %d  unlocking mutex\n", owner);
 	pthread_mutex_unlock(&solvers_mutex);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void forward_cpu_g_loss(const std::vector<caffe::Blob<float>*>&,
+  	  	  const std::vector<caffe::Blob<float>*>&)
+{
+	std::cout << "forward_cpu_g_loss " << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void forward_gpu_g_loss(const std::vector<caffe::Blob<float>*>&,
+  	  	  const std::vector<caffe::Blob<float>*>&)
+{
+	std::cout << "forward_gpu_g_loss " << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void backward_cpu_g_loss(const std::vector<caffe::Blob<float>*>&,
+						const std::vector<bool>&,
+						const std::vector<caffe::Blob<float>*>&)
+{
+	std::cout << "backward_cpu_g_loss " << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void backward_gpu_g_loss(const std::vector<caffe::Blob<float>*>&,
+						const std::vector<bool>&,
+						const std::vector<caffe::Blob<float>*>&)
+{
+	std::cout << "backward_gpu_g_loss " << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -488,11 +525,6 @@ void* d_thread_fun(void* interSolverData)
 
 	int batch_size = 64;
 
-	auto input = net_d->blob_by_name("data");
-	auto input_label = net_d->blob_by_name("label");
-	input->Reshape({batch_size, 3, 64, 64});
-	input_label->Reshape({batch_size, 1, 1, 1});
-
 	float* ones = nullptr;
 	float* mones = nullptr;
 
@@ -505,18 +537,17 @@ void* d_thread_fun(void* interSolverData)
 		mones[uiI] = -1.0;
 	}
 
-	float* data_d = input->mutable_cpu_data();
-	float* data_label = input_label->mutable_cpu_data();
 
 	unsigned int d_iter = 25;
 	unsigned int main_it = 1000;
 
+	auto input = net_d->blob_by_name("data");
+	auto input_label = net_d->blob_by_name("label");
+	input->Reshape({batch_size, 3, 64, 64});
+	input_label->Reshape({batch_size, 1, 1, 1});
+
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
-		memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64),
-				batch_size * 3 * 64 * 64 * sizeof(float));
-		memcpy(data_label, ones, batch_size * sizeof(float));
-
 		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 8, 8);
 		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 1, 1);
 
@@ -526,13 +557,27 @@ void* d_thread_fun(void* interSolverData)
 		{
 			//------------------------------------------------------------------
 			// Train D with real
-			solver->Step(1);
-			std::cout << "=========================================================" << std::endl;
-			std::cout << "iteration D " << uiI << " " << uiJ << std::endl;
-			show_outputs_blobs(net_d);
-			float errorD_real = 0.0;
-			auto blob_errorD = net_d->blob_by_name("loss2");
 
+			float* data_d = input->mutable_cpu_data();
+			float* data_label = input_label->mutable_cpu_data();
+
+			memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64),
+					batch_size * 3 * 64 * 64 * sizeof(float));
+			memcpy(data_label, ones, batch_size * sizeof(float));
+
+			float loss_D = net_d->ForwardBackward();
+			float errorD_real = 0.0;
+			if (uiJ == (d_iter - 1))
+			{
+				unsigned int c = net_d->blob_by_name("conv5")->count();
+				const float* data_conv5 = net_d->blob_by_name("conv5")->cpu_data();
+
+				for (unsigned uiK = 0; uiK < c; uiK++)
+				{
+					errorD_real += data_conv5[uiK];
+				}
+				errorD_real /= (float)(c);
+			}
 
 			//------------------------------------------------------------------
 			// Train D with fake
@@ -544,23 +589,37 @@ void* d_thread_fun(void* interSolverData)
 			float* data_g = input_g->mutable_cpu_data();
 			memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
 			ps_interSolverData->net_g_->Forward();
-
-			net_d->Backward();
-
 			auto blob_output_g = ps_interSolverData->net_g_->blob_by_name("gconv5");
 
-			// show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
+			data_d = input->mutable_cpu_data();
+			data_label = input_label->mutable_cpu_data();
 
 			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, mones, batch_size * sizeof(float));
 
-			float errorD_fake = 0.0;
-
 			solver->Step(1);
-			show_outputs_blobs(net_d);
 
-			float errorD = 0.0;
+			if (uiJ == (d_iter - 1))
+			{
+				float errorD_fake = 0.0;
+				unsigned int c = net_d->blob_by_name("conv5")->count();
+				const float* data_conv5 = net_d->blob_by_name("conv5")->cpu_data();
 
+				for (unsigned uiK = 0; uiK < c; uiK++)
+				{
+					errorD_fake += data_conv5[uiK];
+				}
+				errorD_fake /= (float)(c);
+
+				std::cout << "=========================================================" << std::endl;
+				std::cout << "net_d->ForwardBackward(): " << loss_D << std::endl;
+				std::cout << "iteration D " << uiI << std::endl;
+				std::cout << "errorD_real: " << errorD_real << std::endl;
+				std::cout << "errorD_fake: " << errorD_fake << std::endl;
+				float errorD = errorD_real - errorD_fake;
+				std::cout << "errorD: " << errorD << std::endl;
+			}
+			net_d->ClearParamDiffs();
 		}
 		releaseToken(OWNER_D);
 	}
@@ -597,6 +656,8 @@ void* g_thread_fun(void* interSolverData)
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	caffe::Net<float>* net_g = ps_interSolverData->net_g_ = solver->net().get();
+
+
 	pthread_barrier_wait(&solvers_barrier);
 
 	float* ones = nullptr;
@@ -615,65 +676,46 @@ void* g_thread_fun(void* interSolverData)
 
 	unsigned int main_it = 1000;
 
+	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
+	input_g->Reshape({batch_size, 100, 1, 1});
+
+	auto blob_output_g = net_g->blob_by_name("gconv5");
+	auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
+	auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
+
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
 		takeToken(OWNER_G);
-		//------------------------------------------------------------------
-		std::cout << "=========================================================" << std::endl;
-		std::cout << "iteration G " << uiI  << std::endl;
-		//------------------------------------------------------------------
-
-
-		auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
-		input_g->Reshape({batch_size, 100, 1, 1});
 
 		recalculateZ(ps_interSolverData->z_data_);
 
-		for (unsigned int uiJ = 0; uiJ < 100; uiJ++)
-		{
-			if (uiJ % 10 == 0) std::cout << std::endl;
-			std::cout << ps_interSolverData->z_data_[uiJ] << " ";
-		}
-
-		float* data_g = input_g->mutable_cpu_data();
-		memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
+		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
 		net_g->Forward();
 
 		//----------------------------------------------------------------------
 		// Get Fake
-		auto blob_output_g = net_g->blob_by_name("gconv5");
-		//show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
-
-		auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
 
 		memcpy(net_d_blob_data->mutable_cpu_data(), blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
-
-		ps_interSolverData->net_d_->Forward();
-		auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
 		memcpy(blob_output_d->mutable_cpu_data(), ones, batch_size * sizeof(float));
 
-		ps_interSolverData->net_d_->Backward();
+		ps_interSolverData->net_d_->ForwardBackward();
+		const float* diff_data = net_d_blob_data->cpu_diff();
 
 
-		memcpy(blob_output_g->mutable_cpu_data(), net_d_blob_data->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
+		memcpy(blob_output_g->mutable_cpu_diff(), diff_data, batch_size * 3 * 64 * 64 * sizeof(float));
 
-		solver->Step(1);
+		solver->StepOne_BackAndUpdate();
 
-		std::cout << std::endl << "-----------------------------------------" << std::endl;
-		for (unsigned int uiJ = 0; uiJ < 100; uiJ++)
+		if (uiI > 0 && uiI % 10 == 0)
 		{
-			if (uiJ % 10 == 0) std::cout << std::endl;
-			std::cout << blob_output_g->cpu_data()[uiJ] << " ";
-		}
-
-		if (uiI % 5 == 0)
-		{
-			memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
+			memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_fix_data_, batch_size * 100 * sizeof(float));
 			net_g->Forward();
-			show_grid_img_CV_32FC3(64, 64, blob_output_g->cpu_data(), 3, 8, 8);
+			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
+			show_grid_img_CV_32FC3(64, 64, img_g_data, 3, 8, 8);
 		}
 
-
+		net_g->ClearParamDiffs();
+		ps_interSolverData->net_d_->ClearParamDiffs();
 		releaseToken(OWNER_G);
 	}
 
