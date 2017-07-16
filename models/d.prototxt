@@ -1,26 +1,22 @@
+
 name: "net_d"
-layer {
-  name: "data"
-# type: "MemoryData"
-  type: "Input"
-  top: "data"
-  top: "label"
-  input_param {
-  	shape: {
-  		dim: 64
-  		dim: 3
-  		dim: 64
-  		dim: 64
-  	}
-  	shape: { dim: 64 dim: 1 dim: 1 dim: 1 }
-  }
-#  memory_data_param 
-#  {
-#    batch_size: 64
-#    channels: 3
-#    height: 64
-#    width: 64 
-#  }
+
+force_backward: true
+
+input: "data"
+input_shape {
+  dim: 64
+  dim: 3
+  dim: 64
+  dim: 64
+}
+
+input: "label"
+input_shape {
+  dim: 64
+  dim: 1
+  dim: 1
+  dim: 1
 }
 
 ################################################################################
@@ -44,7 +40,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.0001
+      std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -86,7 +82,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.0001
+      std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -138,7 +134,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.0001
+      std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -190,7 +186,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.0001
+      std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -242,7 +238,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.0001
+      std: 0.01
     }
     bias_filler {
       type: "constant"
@@ -251,44 +247,38 @@ layer {
   }
 }
 
-#layer {
-#  name: "ip1"
-#  type: "InnerProduct"
-#  bottom: "norm3"
-#  top: "ip1"
-#  param {
-#    lr_mult: 1
-#    decay_mult: 250
-#  }
-#  param {
-#    lr_mult: 2
-#    decay_mult: 0
-#  }
-#  inner_product_param {
-#    num_output: 1
-#    weight_filler {
-#      type: "gaussian"
-#      std: 0.01
-#    }
-#    bias_filler {
-#      type: "constant"
-#    }
-#  }
-#}
+layer {
+  name: "Dfc7"
+  type: "InnerProduct"
+  bottom: "conv5"
+  top: "Dfc7"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
 
 ################################################################################
-#layer {
-#  name: "loss1"
-#  type: "EuclideanLoss"
-#  bottom: "conv5"
-#  bottom: "label"
-#  top: "loss1"
-#}
-
 layer {
-  name: "loss2"
-  type: "SoftmaxWithLoss"
-  bottom: "conv5"
+  name: "loss"
+  type: "SigmoidCrossEntropyLoss"
+  bottom: "Dfc7"
   bottom: "label"
-  top: "loss2"
+  top: "loss"
+  loss_weight: 1
 }

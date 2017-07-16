@@ -1,9 +1,11 @@
 name: "net_g"
+
+force_backward: true
+
 layer {
     name: "data"
     type: "Input"
     top: "data"
-    top: "label"
     input_param {
         shape {
             dim: 64
@@ -11,7 +13,6 @@ layer {
             dim: 1
             dim: 1
         }
-  	shape: { dim: 64 dim: 1 dim: 1 dim: 1 }
     }
 }
 
@@ -28,11 +29,12 @@ layer {
         num_output: 512
         kernel_size: 4
         stride: 1
+        pad: 0
         bias_term: false
         weight_filler {
           type: "gaussian"
           mean: 0.0
-          std: 0.0001
+          std: 0.01
         }
         bias_filler {
           type: "constant"
@@ -47,6 +49,7 @@ layer {
     top: "gconv1"
     batch_norm_param {
         use_global_stats: false
+        eps: 1e-05
     }
 }
 layer {
@@ -97,6 +100,7 @@ layer {
     top: "gconv2"
     batch_norm_param {
         use_global_stats: false
+        eps: 1e-05
     }
 }
 layer {
@@ -147,6 +151,7 @@ layer {
     top: "gconv3"
     batch_norm_param {
         use_global_stats: false
+        eps: 1e-05
     }
 }
 layer {
@@ -198,6 +203,7 @@ layer {
     top: "gconv4"
     batch_norm_param {
         use_global_stats: false
+        eps: 1e-05
     }
 }
 layer {
@@ -248,20 +254,4 @@ layer {
     top: "gconv5"
 }
 
-################################################################################
-#layer {
-#  name: "loss1"
-#  type: "EuclideanLoss"
-#  bottom: "conv5"
-#  bottom: "label"
-#  top: "loss1"
-#}
-
-#layer {
-#  name: "loss2"
-#  type: "SoftmaxWithLoss"
-#  bottom: "gact5"
-#  bottom: "label"
-#  top: "loss2"
-#}
 
