@@ -18,7 +18,7 @@ CXX_FLAGS_RELEASE := -O3
 
 INC := $(INC_DIR)
 
-LIBS := -L ../my_caffe/build/lib -Wl,-Bdynamic -lcaffe -lopencv_core -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
+LIBS := -L ../my_caffe/build/lib -Wl,-Bdynamic -lcaffe -lcuda -lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
 
 CCFILES := $(shell ls -1 ./src/*.cpp 2>/dev/null)
 

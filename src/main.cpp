@@ -50,6 +50,8 @@
 
 int train_test(CCifar10* cifar10_data, struct S_ConfigArgs* configArgs);
 
+int main_test_2(CCifar10* cifar10_data);
+
 int main_test(CCifar10* cifar10_data);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -352,8 +354,8 @@ int main(int argc, char **argv)
 //    }
 
 //	cifar10_data->show_test_img(1200);
-	return main_test(cifar10_data);
-
+	//return main_test(cifar10_data);
+	return main_test_2(cifar10_data);
 //	return train_test(cifar10_data, &configArgs);
 
 }
