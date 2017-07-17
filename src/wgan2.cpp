@@ -151,6 +151,7 @@ int main_test_2(CCifar10* cifar10_data)
 
 	//--------------------------------------------------------------------------
 
+	//caffe::Caffe::set_mode(caffe::Caffe::CPU);
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
 	int batch_size = 64;
@@ -177,7 +178,7 @@ int main_test_2(CCifar10* cifar10_data)
 	caffe::Net<float>* net_u = solver->net().get();
 
 
-	unsigned int d_iter = 25;
+	unsigned int d_iter = 1;
 	unsigned int main_it = 1000;
 
 	auto input_g = net_u->blob_by_name("data");
@@ -194,8 +195,53 @@ int main_test_2(CCifar10* cifar10_data)
 		float* data_d = nullptr;
 		for (unsigned int uiJ = 0; uiJ < d_iter; uiJ++)
 		{
+
 			//------------------------------------------------------------------
 			// Train D with real
+
+			net_u->ClearParamDiffs();
+
+			auto learnable_blobs = net_u->learnable_params();
+
+			for (auto it_lb : learnable_blobs)
+			{
+				std::cout << (void*)it_lb << std::endl;
+				std::cout << it_lb->shape_string() << std::endl;
+			}
+			std::cout << "======================================" << std::endl;
+			const std::vector<std::shared_ptr<caffe::Blob<float> > >& params = net_u->params();
+
+			for (auto it_lb : params)
+			{
+				std::cout << (void*)(it_lb.get()) << std::endl;
+				std::cout << it_lb->shape_string() << std::endl;
+			}
+
+			std::cout << "======================================" << std::endl;
+			auto blobs_names = net_u->blob_names();
+			auto layers = net_u->layers();
+
+			const std::vector<std::vector<caffe::Blob<float>*> >& bottons_by_layer = net_u->bottom_vecs();
+			const std::vector<std::vector<caffe::Blob<float>*> >& tops_by_layer = net_u->top_vecs();
+
+			unsigned int layer_idx = 0;
+			for (auto it_layer : layers)
+			{
+				std::cout << "------------------" << std::endl;
+				std::cout << it_layer->layer_param().name() << std::endl;
+
+				for (auto it_botton : bottons_by_layer.at(layer_idx))
+				{
+					std::cout << (void*)it_botton << " " << std::endl;
+				}
+				std::cout << std::endl;
+				for (auto it_top : tops_by_layer.at(layer_idx))
+				{
+					std::cout << (void*)it_top << " " << std::endl;
+				}
+
+				layer_idx++;
+			}
 
 			data_d = input_d->mutable_cpu_data();
 			data_label = input_label_d->mutable_cpu_data();
@@ -218,7 +264,7 @@ int main_test_2(CCifar10* cifar10_data)
 				errorD_real /= (float)(c);
 			}
 			net_u->BackwardFromTo(32, 19);
-
+			solver->ApplyUpdate();
 			//------------------------------------------------------------------
 			// Train D with fake
 
@@ -232,7 +278,7 @@ int main_test_2(CCifar10* cifar10_data)
 
 			net_u->Forward();
 			net_u->BackwardFromTo(32, 19);
-			//net_u->Update();
+			solver->ApplyUpdate();
 
 			if (uiJ == (d_iter - 1))
 			{
@@ -254,7 +300,6 @@ int main_test_2(CCifar10* cifar10_data)
 				float errorD = errorD_real - errorD_fake;
 				std::cout << "errorD: " << errorD << std::endl;
 			}
-			net_u->ClearParamDiffs();
 		}
 
 		recalculateZ(z_data);
