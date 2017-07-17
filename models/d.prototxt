@@ -40,7 +40,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.01
+      std: 0.001
     }
     bias_filler {
       type: "constant"
