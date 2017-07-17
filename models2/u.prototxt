@@ -1,0 +1,572 @@
+
+name: "net_u"
+
+#################################################################################
+#################################################################################
+#################################################################################
+#################################################################################
+# Generator
+
+#################################################################################
+# 0 Input layer
+
+input: "data"
+input_shape {
+  dim: 64
+  dim: 100
+  dim: 1
+  dim: 1
+}
+
+input: "label"
+input_shape {
+  dim: 64
+  dim: 1
+  dim: 1
+  dim: 1
+}
+
+
+
+################################################################################
+# 1 Block (DeConv + BatchNorm + Scale + ReLU) 
+
+# 1x1
+layer {
+    name: "gconv1"
+    type: "Deconvolution"
+    bottom: "data"
+    top: "gconv1"
+    convolution_param {
+        num_output: 512
+        kernel_size: 4
+        stride: 1
+        pad: 0
+        bias_term: false
+        weight_filler {
+          type: "gaussian"
+          mean: 0.0
+          std: 0.001
+        }
+        bias_filler {
+          type: "constant"
+          value: 0
+        }
+    }
+}
+
+# 2 layer
+layer {
+    name: "gbn1"
+    type: "BatchNorm"
+    bottom: "gconv1"
+    top: "gconv1"
+    batch_norm_param {
+        use_global_stats: false
+        eps: 1e-05
+    }
+}
+
+# 3 layer
+layer {
+    name: "gbn1_scale"
+    type: "Scale"
+    bottom: "gconv1"
+    top: "gconv1"
+    scale_param {
+        bias_term: true
+    }
+}
+
+# 4 layer
+layer {
+    name: "gact1"
+    type: "ReLU"
+    bottom: "gconv1"
+    top: "gconv1"
+}
+################################################################################
+# 5 Block (DeConv + BatchNorm + Scale + ReLU)
+
+# 4x4
+layer {
+    name: "gconv2"
+    type: "Deconvolution"
+    bottom: "gconv1"
+    top: "gconv2"
+    convolution_param {
+        num_output: 256
+        kernel_size: 4
+        stride: 2
+        pad: 1
+        bias_term: false
+        weight_filler {
+          type: "gaussian"
+          mean: 0.0
+          std: 0.001
+        }
+        bias_filler {
+          type: "constant"
+          value: 0
+        }
+    }
+}
+
+# 6
+layer {
+    name: "gbn2"
+    type: "BatchNorm"
+    bottom: "gconv2"
+    top: "gconv2"
+    batch_norm_param {
+        use_global_stats: false
+        eps: 1e-05
+    }
+}
+
+# 7
+layer {
+    name: "gbn2_scale"
+    type: "Scale"
+    bottom: "gconv2"
+    top: "gconv2"
+    scale_param {
+        bias_term: true
+    }
+}
+
+# 8
+layer {
+    name: "gact2"
+    type: "ReLU"
+    bottom: "gconv2"
+    top: "gconv2"
+}
+################################################################################
+# 9 Block (DeConv + BatchNorm + Scale + ReLU)
+
+# 8x8
+layer {
+    name: "gconv3"
+    type: "Deconvolution"
+    bottom: "gconv2"
+    top: "gconv3"
+    convolution_param {
+        num_output: 128
+        kernel_size: 4
+        stride: 2
+        pad: 1
+        bias_term: false
+        weight_filler {
+          type: "gaussian"
+          mean: 0.0
+          std: 0.001
+        }
+        bias_filler {
+          type: "constant"
+          value: 0
+        }
+    }
+}
+
+# 10
+layer {
+    name: "gbn3"
+    type: "BatchNorm"
+    bottom: "gconv3"
+    top: "gconv3"
+    batch_norm_param {
+        use_global_stats: false
+        eps: 1e-05
+    }
+}
+
+# 11
+layer {
+    name: "gbn3_scale"
+    type: "Scale"
+    bottom: "gconv3"
+    top: "gconv3"
+    scale_param {
+        bias_term: true
+    }
+}
+
+# 12
+layer {
+    name: "gact3"
+    type: "ReLU"
+    bottom: "gconv3"
+    top: "gconv3"
+}
+
+################################################################################
+# 13 Block (DeConv + BatchNorm + Scale + ReLU)
+
+# 16x16
+layer {
+    name: "gconv4"
+    type: "Deconvolution"
+    bottom: "gconv3"
+    top: "gconv4"
+    convolution_param {
+        num_output: 64
+        kernel_size: 4
+        stride: 2
+        pad: 1
+        bias_term: false
+        weight_filler {
+          type: "gaussian"
+          mean: 0.0
+          std: 0.001
+        }
+        bias_filler {
+          type: "constant"
+          value: 0
+        }
+    }
+}
+
+# 14
+layer {
+    name: "gbn4"
+    type: "BatchNorm"
+    bottom: "gconv4"
+    top: "gconv4"
+    batch_norm_param {
+        use_global_stats: false
+        eps: 1e-05
+    }
+}
+
+# 15
+layer {
+    name: "gbn4_scale"
+    type: "Scale"
+    bottom: "gconv4"
+    top: "gconv4"
+    scale_param {
+        bias_term: true
+    }
+}
+
+# 16
+layer {
+    name: "gact4"
+    type: "ReLU"
+    bottom: "gconv4"
+    top: "gconv4"
+}
+################################################################################
+# 17 Block (DeConv + TanH)
+
+# 32x32
+layer {
+    name: "gconv5"
+    type: "Deconvolution"
+    bottom: "gconv4"
+    top: "gconv5"
+    convolution_param {
+        num_output: 3
+        kernel_size: 4
+        stride: 2
+        pad: 1
+        bias_term: false
+        weight_filler {
+          type: "gaussian"
+          mean: 0.0
+          std: 0.001
+        }
+        bias_filler {
+          type: "constant"
+          value: 0
+        }
+    }
+}
+
+# 18
+layer {
+    name: "gact5"
+    type: "TanH"
+    bottom: "gconv5"
+    top: "gconv5"
+}
+
+#################################################################################
+
+
+
+
+
+#################################################################################
+#################################################################################
+#################################################################################
+#################################################################################
+# Discriminator
+
+
+################################################################################
+# 19 Torch (initial.conv.3-64): Conv2d(3, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "gconv5"
+  top: "conv1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 64
+    pad: 1
+    kernel_size: 4
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+################################################################################
+# 20 Torch LeakyReLU (0.2, inplace)
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
+  relu_param {
+    negative_slope: 0.2
+  }
+}
+
+################################################################################
+# 21 Torch (pyramid.64-128.conv): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 128
+    pad: 1
+    kernel_size: 4
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# 22 Torch (pyramid.128.batchnorm): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True)
+layer {
+  name: "norm1"
+  type: "BatchNorm"
+  bottom: "conv2"
+  top: "norm1"
+  batch_norm_param {
+    eps: 1e-05
+  }
+}
+
+# 23 Torch LeakyReLU (0.2, inplace)
+layer {
+  name: "relu2"
+  type: "ReLU"
+  bottom: "norm1"
+  top: "norm1"
+  relu_param {
+    negative_slope: 0.2
+  }
+}
+
+################################################################################
+# 24 Torch (pyramid.128-256.conv): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+layer {
+  name: "conv3"
+  type: "Convolution"
+  bottom: "norm1"
+  top: "conv3"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 256
+    pad: 1
+    kernel_size: 4
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# 25Torch (pyramid.256.batchnorm): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True)
+layer {
+  name: "norm2"
+  type: "BatchNorm"
+  bottom: "conv3"
+  top: "norm2"
+  batch_norm_param {
+    eps: 1e-05
+  }
+}
+
+# 26 Torch LeakyReLU (0.2, inplace)
+layer {
+  name: "relu3"
+  type: "ReLU"
+  bottom: "norm2"
+  top: "norm2"
+  relu_param {
+    negative_slope: 0.2
+  }
+}
+
+################################################################################
+# 27 Torch (pyramid.256-512.conv): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+layer {
+  name: "conv4"
+  type: "Convolution"
+  bottom: "norm2"
+  top: "conv4"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 512
+    pad: 1
+    kernel_size: 4
+    stride: 2
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# 28 Torch (pyramid.512.batchnorm): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True)
+layer {
+  name: "norm3"
+  type: "BatchNorm"
+  bottom: "conv4"
+  top: "norm3"
+  batch_norm_param {
+    eps: 1e-05
+  }
+}
+
+# 29 Torch LeakyReLU (0.2, inplace)
+layer {
+  name: "relu4"
+  type: "ReLU"
+  bottom: "norm3"
+  top: "norm3"
+  relu_param {
+    negative_slope: 0.2
+  }
+}
+
+################################################################################
+# 30 Torch (final.512-1.conv): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), bias=False)
+layer {
+  name: "conv5"
+  type: "Convolution"
+  bottom: "norm3"
+  top: "conv5"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 1
+    pad: 0
+    kernel_size: 4
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      mean: 0.0
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+# 31
+layer {
+  name: "Dfc7"
+  type: "InnerProduct"
+  bottom: "conv5"
+  top: "Dfc7"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.001
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+
+################################################################################
+# 32
+layer {
+  name: "loss"
+  type: "SigmoidCrossEntropyLoss"
+  bottom: "Dfc7"
+  bottom: "label"
+  top: "loss"
+  loss_weight: 1
+}
