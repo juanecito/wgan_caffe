@@ -31,6 +31,9 @@
 
 #include <pthread.h>
 
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+
 #include <caffe/caffe.hpp>
 
 #include <caffe/layers/memory_data_layer.hpp>
@@ -61,6 +64,11 @@ static pthread_barrier_t solvers_barrier;
 #define OWNER_G 1
 
 static int current_owner;
+
+
+static void CheckCudaErrorAux (const char *, unsigned, const char *, cudaError_t);
+#define CUDA_CHECK_RETURN(value) CheckCudaErrorAux(__FILE__,__LINE__, #value, value)
+
 
 //------------------------------------------------------------------------------
 // Error in library libcaffe.so temporal fix
@@ -187,6 +195,55 @@ void show_grid_img_CV_32FC3(unsigned int img_width, unsigned int img_height, con
 	const cv::Mat img(img_width * grid_width, img_height * grid_height, CV_32FC3, tranf_img_data);
 	cv::imshow("cifar10_generator", img);
 	cv::waitKey();
+
+	delete[] tranf_img_data;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void write_grid_img_CV_32FC3(const std::string& file_name,
+		unsigned int img_width, unsigned int img_height, const float* img_data,
+		unsigned int channels, unsigned int grid_width, unsigned int grid_height)
+{
+	unsigned int img_count = grid_height * grid_width;
+	unsigned int img_size_per_channel = img_height * img_width;
+	unsigned int img_size = channels * img_size_per_channel;
+
+	unsigned int grid_img_count = img_count * img_size;
+
+	float* tranf_img_data = new float [grid_img_count];
+
+	for (unsigned int y_grid = 0; y_grid < grid_height; y_grid++)
+	{
+		for (unsigned int x_grid = 0; x_grid < grid_width; x_grid++)
+		{
+			for (unsigned int y_img = 0; y_img < img_height; y_img++)
+			{
+				for (unsigned int x_img = 0; x_img < img_width; x_img++)
+				{
+					unsigned int tranf_img_data_index =
+								y_grid * grid_width * img_size +
+								y_img * grid_width * img_width * channels +
+								x_grid * (img_width * channels) +
+								x_img * channels;
+
+					unsigned int img_data_index = (y_grid * grid_width + x_grid) * img_size
+								+ y_img * img_width + x_img;
+
+					for (unsigned int c = 0; c < channels; c++)
+					{
+						tranf_img_data[tranf_img_data_index + c] = img_data[img_data_index + c * img_size_per_channel];
+					}
+
+				}
+			}
+		}
+	}
+
+	const cv::Mat img(img_width * grid_width, img_height * grid_height, CV_32FC3, tranf_img_data);
+
+	cv::FileStorage fs(file_name.c_str(), cv::FileStorage::WRITE);
+	fs << "grid_img" << img;
+	fs.release();
 
 	delete[] tranf_img_data;
 }
@@ -496,6 +553,33 @@ void* d_thread_fun(void* interSolverData)
 
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
 
+	int batch_size = 64;
+
+	float* ones = nullptr;
+	float* mones = nullptr;
+
+	ones = new float [batch_size];
+	mones = new float [batch_size];
+
+	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
+	{
+		ones[uiI] = 1.0;
+		mones[uiI] = -1.0;
+	}
+
+#if 0
+	float* ones_gpu = nullptr;
+	float* mones_gpu = nullptr;
+	float* train_imgs_gpu = nullptr;
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&train_imgs_gpu, count_train * 3 * 64 * 64 * sizeof(float)));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&ones_gpu, batch_size * sizeof(float)));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&mones_gpu, batch_size * sizeof(float)));
+
+	CUDA_CHECK_RETURN(cudaMemcpy(train_imgs_gpu, train_imgs, count_train * 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy(ones_gpu, ones, batch_size * sizeof(float), cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy(mones_gpu, mones, batch_size * sizeof(float), cudaMemcpyHostToDevice));
+#endif
+
 	caffe::SolverParameter solver_param;
 	boost::shared_ptr<caffe::Solver<float> > solver;
 
@@ -523,19 +607,7 @@ void* d_thread_fun(void* interSolverData)
 //					new CClampFunctor<float>(*net_d), -0.1, 0.1);
 //	net_d->add_before_forward(clampFunctor);
 
-	int batch_size = 64;
 
-	float* ones = nullptr;
-	float* mones = nullptr;
-
-	ones = new float [batch_size];
-	mones = new float [batch_size];
-
-	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
-	{
-		ones[uiI] = 1.0;
-		mones[uiI] = -1.0;
-	}
 
 
 	unsigned int d_iter = 25;
@@ -545,6 +617,9 @@ void* d_thread_fun(void* interSolverData)
 	auto input_label = net_d->blob_by_name("label");
 	input->Reshape({batch_size, 3, 64, 64});
 	input_label->Reshape({batch_size, 1, 1, 1});
+
+	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
+	input_g->Reshape({64, 100, 1, 1});
 
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
@@ -565,12 +640,13 @@ void* d_thread_fun(void* interSolverData)
 					batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, ones, batch_size * sizeof(float));
 
+
 			float loss_D = net_d->ForwardBackward();
 			float errorD_real = 0.0;
 			if (uiJ == (d_iter - 1))
 			{
-				unsigned int c = net_d->blob_by_name("conv5")->count();
-				const float* data_conv5 = net_d->blob_by_name("conv5")->cpu_data();
+				unsigned int c = net_d->blob_by_name("Dfc7")->count();
+				const float* data_conv5 = net_d->blob_by_name("Dfc7")->cpu_data();
 
 				for (unsigned uiK = 0; uiK < c; uiK++)
 				{
@@ -581,8 +657,6 @@ void* d_thread_fun(void* interSolverData)
 
 			//------------------------------------------------------------------
 			// Train D with fake
-			auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
-			input_g->Reshape({64, 100, 1, 1});
 
 			recalculateZ(ps_interSolverData->z_data_);
 
@@ -597,13 +671,14 @@ void* d_thread_fun(void* interSolverData)
 			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, mones, batch_size * sizeof(float));
 
-			solver->Step(1);
+			//solver->Step(1);
+			solver->StepOne_BackAndUpdate();
 
 			if (uiJ == (d_iter - 1))
 			{
 				float errorD_fake = 0.0;
-				unsigned int c = net_d->blob_by_name("conv5")->count();
-				const float* data_conv5 = net_d->blob_by_name("conv5")->cpu_data();
+				unsigned int c = net_d->blob_by_name("Dfc7")->count();
+				const float* data_conv5 = net_d->blob_by_name("Dfc7")->cpu_data();
 
 				for (unsigned uiK = 0; uiK < c; uiK++)
 				{
@@ -626,6 +701,13 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 	pthread_barrier_wait(&solvers_barrier);
+
+#if 0
+	CUDA_CHECK_RETURN(cudaFree(train_imgs_gpu));
+	CUDA_CHECK_RETURN(cudaFree(ones_gpu));
+	CUDA_CHECK_RETURN(cudaFree(mones_gpu));
+#endif
+
 	return nullptr;
 }
 
@@ -705,6 +787,7 @@ void* g_thread_fun(void* interSolverData)
 		memcpy(blob_output_g->mutable_cpu_diff(), diff_data, batch_size * 3 * 64 * 64 * sizeof(float));
 
 		solver->StepOne_BackAndUpdate();
+		//solver->Step(1);
 
 		if (uiI > 0 && uiI % 10 == 0)
 		{
@@ -712,21 +795,14 @@ void* g_thread_fun(void* interSolverData)
 			net_g->Forward();
 			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
 			show_grid_img_CV_32FC3(64, 64, img_g_data, 3, 8, 8);
+			std::string file_name = std::string("wgan_grid") + std::to_string(uiI) + std::string(".yml");
+			write_grid_img_CV_32FC3(file_name, 64, 64, img_g_data, 3, 8, 8);
 		}
 
 		net_g->ClearParamDiffs();
 		ps_interSolverData->net_d_->ClearParamDiffs();
 		releaseToken(OWNER_G);
 	}
-
-	//--------------------------------------------------------------------------
-	//solver->Solve();
-	//solver->Step(1);
-	float loss = 0.0;
-	solver->net()->Forward(&loss);
-	std::cout << "loss: " << loss << std::endl;
-	//--------------------------------------------------------------------------
-
 
 	pthread_barrier_wait(&solvers_barrier);
 	return nullptr;
@@ -832,4 +908,20 @@ int main_test(CCifar10* cifar10_data)
 
   return 0;
 }
+
+
+/**
+ * Check the return value of the CUDA runtime API call and exit
+ * the application if the call has failed.
+ */
+static void CheckCudaErrorAux (const char *file, unsigned line, const char *statement, cudaError_t err)
+{
+	if (err == cudaSuccess)
+		return;
+	std::cerr << statement<<" returned " << cudaGetErrorString(err) << "("<<err<< ") at "<<file<<":"<<line << std::endl;
+	exit (1);
+}
+
+
+
 

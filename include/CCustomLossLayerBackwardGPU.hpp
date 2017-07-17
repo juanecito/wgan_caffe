@@ -34,7 +34,7 @@ class CCustomLossLayerBackwardGPU
 		void backward_gpu_g_loss(const std::vector<caffe::Blob<float>*>& top,
 				const std::vector<bool>& propagate_down, const std::vector<caffe::Blob<float>*>& bottom)
 		{
-			memcpy(bottom[0]->mutable_cpu_diff(), extern_diff_blob_.cpu_diff(), extern_diff_blob_.count() * sizeof(float));
+			memcpy(top[0]->mutable_cpu_diff(), extern_diff_blob_.cpu_diff(), extern_diff_blob_.count() * sizeof(float));
 		}
 
 };
