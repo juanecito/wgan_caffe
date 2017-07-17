@@ -10,23 +10,29 @@ name: "net_u"
 #################################################################################
 # 0 Input layer
 
-input: "data"
-input_shape {
-  dim: 64
-  dim: 100
-  dim: 1
-  dim: 1
+state {
+  phase: TRAIN
 }
-
-input: "label"
-input_shape {
-  dim: 64
-  dim: 1
-  dim: 1
-  dim: 1
+layer {
+  name: "input"
+  type: "Input"
+  top: "data"
+  top: "label"
+  input_param {
+    shape {
+      dim: 64
+      dim: 100
+      dim: 1
+      dim: 1
+    }
+    shape {
+      dim: 64
+      dim: 1
+      dim: 1
+      dim: 1
+    }
+  }
 }
-
-
 
 ################################################################################
 # 1 Block (DeConv + BatchNorm + Scale + ReLU) 
