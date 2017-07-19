@@ -1,9 +1,9 @@
-#type: "Adam"
-type: "SGD"
+type: "Adam"
+#type: "SGD"
 net: "./models2/u.prototxt"
 
 ################################################################################
-base_lr: 0.0001   # begin training at a learning rate of 0.0001
+base_lr: 0.0005   # begin training at a learning rate of 0.0001
 
 lr_policy: "step" # learning rate policy: drop the learning rate in "steps"
                   # by a factor of gamma every stepsize iterations

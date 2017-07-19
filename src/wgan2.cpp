@@ -298,22 +298,22 @@ int main_test_2(CCifar10* cifar10_data)
 					batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, ones, batch_size * sizeof(float));
 
-			float loss_D = net_u->ForwardFromTo(19, 32);
+			float loss_D = net_u->ForwardFromTo(19, 31);
 			float errorD_real = 0.0;
 			if (uiJ == (d_iter - 1))
 			{
-				unsigned int c = net_u->blob_by_name("Dfc7")->count();
-				const float* data_conv5 = net_u->blob_by_name("Dfc7")->cpu_data();
+//				unsigned int c = net_u->blob_by_name("Dfc7")->count();
+//				const float* data_conv5 = net_u->blob_by_name("Dfc7")->cpu_data();
+//
+//				for (unsigned uiK = 0; uiK < c; uiK++)
+//				{
+//					errorD_real += data_conv5[uiK];
+//				}
+//				errorD_real /= (float)(c);
 
-				for (unsigned uiK = 0; uiK < c; uiK++)
-				{
-					errorD_real += data_conv5[uiK];
-				}
-				errorD_real /= (float)(c);
+				errorD_real = net_u->blob_by_name("conv5")->cpu_data()[0];
 			}
-			net_u->BackwardFromTo(32, 19);
-			solver->ApplyUpdateFromTo(19, 32);
-			net_u->ClearParamDiffs();
+			net_u->BackwardFromTo(31, 19);
 			//------------------------------------------------------------------
 			// Train D with fake
 
@@ -326,20 +326,23 @@ int main_test_2(CCifar10* cifar10_data)
 			memcpy(data_label, mones, batch_size * sizeof(float));
 
 			net_u->Forward();
-			net_u->BackwardFromTo(32, 19);
-			solver->ApplyUpdateFromTo(19, 32);
+			net_u->BackwardFromTo(31, 19);
+			solver->ApplyUpdate();
+
 
 			if (uiJ == (d_iter - 1))
 			{
 				float errorD_fake = 0.0;
-				unsigned int c = net_u->blob_by_name("Dfc7")->count();
-				const float* data_conv5 = net_u->blob_by_name("Dfc7")->cpu_data();
+//				unsigned int c = net_u->blob_by_name("Dfc7")->count();
+//				const float* data_conv5 = net_u->blob_by_name("Dfc7")->cpu_data();
 
-				for (unsigned uiK = 0; uiK < c; uiK++)
-				{
-					errorD_fake += data_conv5[uiK];
-				}
-				errorD_fake /= (float)(c);
+				errorD_fake = net_u->blob_by_name("conv5")->cpu_data()[0];
+
+//				for (unsigned uiK = 0; uiK < c; uiK++)
+//				{
+//					errorD_fake += data_conv5[uiK];
+//				}
+//				errorD_fake /= (float)(c);
 
 				std::cout << "=========================================================" << std::endl;
 				std::cout << "net_d->ForwardBackward(): " << loss_D << std::endl;
@@ -362,11 +365,11 @@ int main_test_2(CCifar10* cifar10_data)
 		net_u->Forward();
 		net_u->Backward();
 
-
+		solver->ApplyUpdate();
 		// I need update only generator side
 		// net_u->learnable_params();
 
-		net_u->Update();
+		//net_u->Update();
 		//solver->ApplyUpdateFromTo(0, 18);
 		//solver->Step(1);
 

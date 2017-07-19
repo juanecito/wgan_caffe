@@ -109,7 +109,7 @@ layer {
         weight_filler {
           type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
         }
         bias_filler {
           type: "constant"
@@ -166,7 +166,7 @@ layer {
         weight_filler {
           type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
         }
         bias_filler {
           type: "constant"
@@ -224,7 +224,7 @@ layer {
         weight_filler {
           type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
         }
         bias_filler {
           type: "constant"
@@ -281,7 +281,7 @@ layer {
         weight_filler {
           type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
         }
         bias_filler {
           type: "constant"
@@ -332,7 +332,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
     }
     bias_filler {
       type: "constant"
@@ -374,7 +374,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
     }
     bias_filler {
       type: "constant"
@@ -426,7 +426,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
     }
     bias_filler {
       type: "constant"
@@ -478,7 +478,7 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.001
+      std: 0.0001
     }
     bias_filler {
       type: "constant"
@@ -530,34 +530,6 @@ layer {
     weight_filler {
       type: "gaussian"
       mean: 0.0
-      std: 0.001
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-
-# 31
-layer {
-  name: "Dfc7"
-  type: "InnerProduct"
-  bottom: "conv5"
-  top: "Dfc7"
-  param {
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    lr_mult: 0
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 1
-    weight_filler {
-      type: "gaussian"
-      mean: 0.0
       std: 0.0001
     }
     bias_filler {
@@ -567,12 +539,40 @@ layer {
   }
 }
 
+# 31
+#layer {
+#  name: "Dfc7"
+#  type: "InnerProduct"
+#  bottom: "conv5"
+#  top: "Dfc7"
+#  param {
+#    lr_mult: 1
+#    decay_mult: 1
+#  }
+#  param {
+#    lr_mult: 0
+#    decay_mult: 0
+#  }
+#  inner_product_param {
+#    num_output: 1
+#    weight_filler {
+#      type: "gaussian"
+#      mean: 0.0
+#      std: 0.0001
+#    }
+#    bias_filler {
+#      type: "constant"
+#      value: 0
+#    }
+#  }
+#}
+
 ################################################################################
-# 32
+# 31
 layer {
   name: "loss"
   type: "SigmoidCrossEntropyLoss"
-  bottom: "Dfc7"
+  bottom: "conv5"
   bottom: "label"
   top: "loss"
   loss_weight: 1
