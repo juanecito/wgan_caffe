@@ -51,8 +51,8 @@ layer {
         bias_term: false
         weight_filler {
           type: "gaussian"
-          mean: 0.0
-          std: 0.001
+      mean: 0.0
+      std: 0.001
         }
         bias_filler {
           type: "constant"
@@ -108,8 +108,8 @@ layer {
         bias_term: false
         weight_filler {
           type: "gaussian"
-          mean: 0.0
-          std: 0.001
+      mean: 0.0
+      std: 0.001
         }
         bias_filler {
           type: "constant"
@@ -165,8 +165,8 @@ layer {
         bias_term: false
         weight_filler {
           type: "gaussian"
-          mean: 0.0
-          std: 0.001
+      mean: 0.0
+      std: 0.001
         }
         bias_filler {
           type: "constant"
@@ -223,8 +223,8 @@ layer {
         bias_term: false
         weight_filler {
           type: "gaussian"
-          mean: 0.0
-          std: 0.001
+      mean: 0.0
+      std: 0.001
         }
         bias_filler {
           type: "constant"
@@ -280,8 +280,8 @@ layer {
         bias_term: false
         weight_filler {
           type: "gaussian"
-          mean: 0.0
-          std: 0.001
+      mean: 0.0
+      std: 0.001
         }
         bias_filler {
           type: "constant"
@@ -557,7 +557,8 @@ layer {
     num_output: 1
     weight_filler {
       type: "gaussian"
-      std: 0.001
+      mean: 0.0
+      std: 0.0001
     }
     bias_filler {
       type: "constant"

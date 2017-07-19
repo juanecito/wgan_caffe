@@ -1,11 +1,28 @@
-type: "Adam"
+#type: "Adam"
+type: "SGD"
 net: "./models2/u.prototxt"
-base_lr: 0.0002
-lr_policy: "step"
-gamma: 0.5
-stepsize: 500000
+
+################################################################################
+base_lr: 0.0001   # begin training at a learning rate of 0.0001
+
+lr_policy: "step" # learning rate policy: drop the learning rate in "steps"
+                  # by a factor of gamma every stepsize iterations
+
+gamma: 0.1        # drop the learning rate by a factor of 10
+                  # (i.e., multiply it by a factor of gamma = 0.1)
+
+stepsize: 100000  # drop the learning rate every 100K iterations
+
+max_iter: 350000  # train for 350K iterations total
+
+momentum: 0.9
+
+weight_decay: 0.004
+
 display: 0
-max_iter: 5000000
+
+iter_size: 4
+
 snapshot: 100000
 snapshot_prefix: "wgan"
 solver_mode: GPU
