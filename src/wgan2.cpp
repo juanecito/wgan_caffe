@@ -178,7 +178,7 @@ int main_test_2(CCifar10* cifar10_data)
 	caffe::Net<float>* net_u = solver->net().get();
 
 
-	unsigned int d_iter = 1;
+	unsigned int d_iter = 25;
 	unsigned int main_it = 1000;
 
 	auto input_g = net_u->blob_by_name("data");
@@ -201,6 +201,7 @@ int main_test_2(CCifar10* cifar10_data)
 
 			net_u->ClearParamDiffs();
 
+#if 0
 			auto learnable_blobs = net_u->learnable_params();
 
 			for (auto it_lb : learnable_blobs)
@@ -209,16 +210,39 @@ int main_test_2(CCifar10* cifar10_data)
 				std::cout << it_lb->shape_string() << std::endl;
 			}
 			std::cout << "======================================" << std::endl;
-			const std::vector<std::shared_ptr<caffe::Blob<float> > >& params = net_u->params();
-
-			for (auto it_lb : params)
+			const std::vector<std::string>& blob_names= net_u->blob_names();
+			for (auto it_b_name : blob_names)
 			{
-				std::cout << (void*)(it_lb.get()) << std::endl;
-				std::cout << it_lb->shape_string() << std::endl;
+				std::cout << it_b_name << " ";
 			}
+			std::cout << std::endl;
+			std::cout << "======================================" << std::endl;
+
+			auto param_display_names = net_u->param_display_names();
+			for (auto it_param_names : param_display_names)
+			{
+				std::cout << "(" << it_param_names<< " " << ")";
+			}
+			std::cout << std::endl;
+
+
+			auto param_layer_indices = net_u->param_layer_indices();
+			for (auto it_param_layer_indices : param_layer_indices)
+			{
+				std::cout << "(" << it_param_layer_indices.first << " " << it_param_layer_indices.second << ")";
+			}
+			std::cout << std::endl;
+
+			auto learnable_param_ids = net_u->learnable_param_ids();
+			for (auto it_learnable_param_ids : learnable_param_ids)
+			{
+				std::cout << "(" << it_learnable_param_ids << " " << ")";
+			}
+			std::cout << std::endl;
 
 			std::cout << "======================================" << std::endl;
-			auto blobs_names = net_u->blob_names();
+
+
 			auto layers = net_u->layers();
 
 			const std::vector<std::vector<caffe::Blob<float>*> >& bottons_by_layer = net_u->bottom_vecs();
@@ -230,18 +254,42 @@ int main_test_2(CCifar10* cifar10_data)
 				std::cout << "------------------" << std::endl;
 				std::cout << it_layer->layer_param().name() << std::endl;
 
+				for (auto it_layer_blobs : it_layer->blobs())
+				{
+					std::cout << " -> " << it_layer_blobs->shape_string() << " ";
+				}
+				std::cout << std::endl;
+
+				std::cout << it_layer->layer_param().name() << std::endl;
+
 				for (auto it_botton : bottons_by_layer.at(layer_idx))
 				{
-					std::cout << (void*)it_botton << " " << std::endl;
+					std::cout << (void*)it_botton << " ";
 				}
 				std::cout << std::endl;
 				for (auto it_top : tops_by_layer.at(layer_idx))
 				{
-					std::cout << (void*)it_top << " " << std::endl;
+					std::cout << (void*)it_top << " ";
 				}
+				std::cout << std::endl;
 
+				const std::vector<int> & bottom_ids = net_u->bottom_ids(layer_idx);
+				for (auto it_bottom_id : bottom_ids)
+				{
+					std::cout << it_bottom_id << " ";
+				}
+				std::cout << std::endl;
+
+				const std::vector<int> & top_ids = net_u->top_ids(layer_idx);
+				for (auto it_top_id : top_ids)
+				{
+					std::cout << it_top_id << " ";
+				}
+				std::cout << std::endl;
 				layer_idx++;
 			}
+
+#endif
 
 			data_d = input_d->mutable_cpu_data();
 			data_label = input_label_d->mutable_cpu_data();
@@ -264,7 +312,8 @@ int main_test_2(CCifar10* cifar10_data)
 				errorD_real /= (float)(c);
 			}
 			net_u->BackwardFromTo(32, 19);
-			solver->ApplyUpdate();
+			solver->ApplyUpdateFromTo(19, 32);
+			net_u->ClearParamDiffs();
 			//------------------------------------------------------------------
 			// Train D with fake
 
@@ -278,7 +327,7 @@ int main_test_2(CCifar10* cifar10_data)
 
 			net_u->Forward();
 			net_u->BackwardFromTo(32, 19);
-			solver->ApplyUpdate();
+			solver->ApplyUpdateFromTo(19, 32);
 
 			if (uiJ == (d_iter - 1))
 			{
@@ -302,6 +351,7 @@ int main_test_2(CCifar10* cifar10_data)
 			}
 		}
 
+		net_u->ClearParamDiffs();
 		recalculateZ(z_data);
 
 		memcpy(input_g->mutable_cpu_data(), z_data, batch_size * 100 * sizeof(float));
@@ -317,7 +367,8 @@ int main_test_2(CCifar10* cifar10_data)
 		// net_u->learnable_params();
 
 		net_u->Update();
-
+		//solver->ApplyUpdateFromTo(0, 18);
+		//solver->Step(1);
 
 		if (uiI > 0 && uiI % 10 == 0)
 		{
@@ -328,9 +379,6 @@ int main_test_2(CCifar10* cifar10_data)
 			std::string file_name = std::string("wgan_grid") + std::to_string(uiI) + std::string(".yml");
 			write_grid_img_CV_32FC3(file_name, 64, 64, img_g_data, 3, 8, 8);
 		}
-
-		net_u->ClearParamDiffs();
-
 	}
 
 
