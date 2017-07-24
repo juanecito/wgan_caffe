@@ -178,7 +178,7 @@ int main_test_2(CCifar10* cifar10_data)
 	caffe::Net<float>* net_u = solver->net().get();
 
 
-	unsigned int d_iter = 25;
+	unsigned int d_iter = 1;
 	unsigned int main_it = 1000;
 
 	auto input_g = net_u->blob_by_name("data");

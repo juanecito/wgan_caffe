@@ -1,6 +1,6 @@
 type: "Adam"
 net: "./models/d.prototxt"
-base_lr: 0.0002
+base_lr: 0.00001
 lr_policy: "step"
 gamma: 0.5
 stepsize: 500000
@@ -9,6 +9,7 @@ max_iter: 5000000
 snapshot: 100000
 snapshot_prefix: "wgan_d"
 solver_mode: GPU
+#solver_mode: CPU
 test_iter: 10000
 test_interval: 10000
 test_initialization: false

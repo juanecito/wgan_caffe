@@ -63,6 +63,8 @@ static pthread_barrier_t solvers_barrier;
 #define OWNER_D 0
 #define OWNER_G 1
 
+#define RUN_GPU 1
+
 static int current_owner;
 
 
@@ -551,7 +553,11 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 
+#if defined(RUN_GPU)
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+#else
+	caffe::Caffe::set_mode(caffe::Caffe::CPU);
+#endif
 
 	int batch_size = 64;
 
@@ -610,7 +616,7 @@ void* d_thread_fun(void* interSolverData)
 
 
 
-	unsigned int d_iter = 25;
+	unsigned int d_iter = 10;
 	unsigned int main_it = 1000;
 
 	auto input = net_d->blob_by_name("data");
@@ -640,20 +646,9 @@ void* d_thread_fun(void* interSolverData)
 					batch_size * 3 * 64 * 64 * sizeof(float));
 			memcpy(data_label, ones, batch_size * sizeof(float));
 
-
 			float loss_D = net_d->ForwardBackward();
 			float errorD_real = 0.0;
-			if (uiJ == (d_iter - 1))
-			{
-				unsigned int c = net_d->blob_by_name("Dfc7")->count();
-				const float* data_conv5 = net_d->blob_by_name("Dfc7")->cpu_data();
-
-				for (unsigned uiK = 0; uiK < c; uiK++)
-				{
-					errorD_real += data_conv5[uiK];
-				}
-				errorD_real /= (float)(c);
-			}
+			errorD_real = net_d->blob_by_name("loss")->cpu_data()[0];
 
 			//------------------------------------------------------------------
 			// Train D with fake
@@ -677,14 +672,7 @@ void* d_thread_fun(void* interSolverData)
 			if (uiJ == (d_iter - 1))
 			{
 				float errorD_fake = 0.0;
-				unsigned int c = net_d->blob_by_name("Dfc7")->count();
-				const float* data_conv5 = net_d->blob_by_name("Dfc7")->cpu_data();
-
-				for (unsigned uiK = 0; uiK < c; uiK++)
-				{
-					errorD_fake += data_conv5[uiK];
-				}
-				errorD_fake /= (float)(c);
+				errorD_fake = net_d->blob_by_name("loss")->cpu_data()[0];
 
 				std::cout << "=========================================================" << std::endl;
 				std::cout << "net_d->ForwardBackward(): " << loss_D << std::endl;
@@ -729,9 +717,12 @@ void* g_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 
+#if defined(RUN_GPU)
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
-	caffe::Caffe& inst_caffe = caffe::Caffe::Get();
-	std::cout << "------------ " << (void*)&inst_caffe << "-----------" << std::endl;
+#else
+	caffe::Caffe::set_mode(caffe::Caffe::CPU);
+#endif
+
 
 	caffe::SolverParameter solver_param;
 	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_g.prototxt", &solver_param);
@@ -782,9 +773,10 @@ void* g_thread_fun(void* interSolverData)
 
 		ps_interSolverData->net_d_->ForwardBackward();
 		const float* diff_data = net_d_blob_data->cpu_diff();
-
+//		const float* data = net_d_blob_data->cpu_data();
 
 		memcpy(blob_output_g->mutable_cpu_diff(), diff_data, batch_size * 3 * 64 * 64 * sizeof(float));
+//		memcpy(blob_output_g->mutable_cpu_data(), data, batch_size * 3 * 64 * 64 * sizeof(float));
 
 		solver->StepOne_BackAndUpdate();
 		//solver->Step(1);
