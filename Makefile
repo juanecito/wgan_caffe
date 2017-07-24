@@ -10,7 +10,7 @@ SRC_DIR := ./src
 BIN_DIR := ./bin
 OBJ_DIR := ./obj
 
-all: $(BIN_DIR)/wgan_debug $(BIN_DIR)/wgan_release
+all: $(BIN_DIR)/wgan_debug $(BIN_DIR)/wgan_release $(BIN_DIR)/img_viewer
 
 CXX_FLAGS_DEBUG := -g3 -O0
 
@@ -44,6 +44,9 @@ $(BIN_DIR)/wgan_release: $(OBJS_RELEASE)
 $(BIN_DIR)/wgan_debug: $(OBJS_DEBUG)
 	mkdir -p $(BIN_DIR);\
 	g++ $(CXX_FLAGS_DEBUG) $(LIBS_DEBUG) $(INC) $^ -o $@
+
+$(BIN_DIR)/img_viewer: $(SRC_DIR)/utils/img_viewer.cpp
+		g++ $(CXX_FLAGS_DEBUG) $(LIBS_DEBUG) $(INC) $^ -o $@
 
 ################################################################################
 
