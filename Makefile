@@ -18,7 +18,9 @@ CXX_FLAGS_RELEASE := -O3
 
 INC := $(INC_DIR)
 
-LIBS := -L ../my_caffe/build/lib -Wl,-Bdynamic -lcaffe -lcuda -lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
+LIBS_RELEASE := -L ../my_caffe/build_r/lib -Wl,-Bdynamic -lcaffe -lcuda -lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
+
+LIBS_DEBUG := -L ../my_caffe/build_d/lib -Wl,-Bdynamic -lcaffe-d -lcuda -lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf -lboost_system -lopencv_imgproc -lpthread
 
 CCFILES := $(shell ls -1 ./src/*.cpp 2>/dev/null)
 
@@ -37,11 +39,11 @@ $(OBJ_DIR)/%.cpp.d.o: $(SRC_DIR)/%.cpp
 
 $(BIN_DIR)/wgan_release: $(OBJS_RELEASE)
 	mkdir -p $(BIN_DIR);\
-	g++ $(CXX_FLAGS_RELEASE) $(LIBS) $(INC) $^ -o $@
+	g++ $(CXX_FLAGS_RELEASE) $(LIBS_RELEASE) $(INC) $^ -o $@
 
 $(BIN_DIR)/wgan_debug: $(OBJS_DEBUG)
 	mkdir -p $(BIN_DIR);\
-	g++ $(CXX_FLAGS_DEBUG) $(LIBS) $(INC) $^ -o $@
+	g++ $(CXX_FLAGS_DEBUG) $(LIBS_DEBUG) $(INC) $^ -o $@
 
 ################################################################################
 
