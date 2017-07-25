@@ -253,37 +253,37 @@ layer {
   }
 }
 
-#layer {
-#  name: "Dfc7"
-#  type: "InnerProduct"
-#  bottom: "conv5"
-#  top: "Dfc7"
-#  param {
-#    lr_mult: 1
-#    decay_mult: 1
-#  }
-#  param {
-#    lr_mult: 0
-#    decay_mult: 0
-#  }
-#  inner_product_param {
-#    num_output: 1
-#    weight_filler {
-#      type: "gaussian"
-#      std: 0.01
-#    }
-#    bias_filler {
-#      type: "constant"
-#      value: 0
-#    }
-#  }
-#}
+layer {
+  name: "Dfc7"
+  type: "InnerProduct"
+  bottom: "conv5"
+  top: "Dfc7"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
 
 ################################################################################
 layer {
   name: "loss"
   type: "SigmoidCrossEntropyLoss"
-  bottom: "conv5"
+  bottom: "Dfc7"
   bottom: "label"
   top: "loss"
   loss_weight: 1

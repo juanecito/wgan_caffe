@@ -571,7 +571,7 @@ void* d_thread_fun(void* interSolverData)
 	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
 	{
 		ones[uiI] = 1.0;
-		mones[uiI] = -1.0;
+		mones[uiI] = 0.0;
 	}
 
 
@@ -610,8 +610,8 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 
-	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
-	net_d->add_before_forward(clampFunctor);
+//	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
+//	net_d->add_before_forward(clampFunctor);
 
 
 	unsigned int d_iter = 25;
@@ -645,9 +645,9 @@ void* d_thread_fun(void* interSolverData)
 
 			cudaMemcpy(input_label->mutable_gpu_data(), ones_gpu, batch_size * sizeof(float), cudaMemcpyDeviceToDevice);
 
-			//float errorD_real = net_d->ForwardBackward();
-			solver->Step(1);
-			float errorD_real = net_d->blob_by_name("loss")->cpu_data()[0];
+			float errorD_real = net_d->ForwardBackward();
+			//solver->Step(1);
+			//float errorD_real = net_d->blob_by_name("loss")->cpu_data()[0];
 
 			//------------------------------------------------------------------
 			// Train D with fake
@@ -663,8 +663,8 @@ void* d_thread_fun(void* interSolverData)
 			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
 			cudaMemcpy(input_label->mutable_gpu_data(), mones_gpu, batch_size * sizeof(float), cudaMemcpyDeviceToDevice);
 
-			solver->Step(1);
-			//solver->StepOne_ForBackAndUpdate();
+			//solver->Step(1);
+			solver->StepOne_ForBackAndUpdate();
 
 			if (uiJ == (d_iter - 1))
 			{
@@ -756,7 +756,7 @@ void* g_thread_fun(void* interSolverData)
 	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
 	{
 		ones[uiI] = 1.0;
-		mones[uiI] = -1.0;
+		mones[uiI] = 0.0;
 	}
 
 	unsigned int main_it = 500;
