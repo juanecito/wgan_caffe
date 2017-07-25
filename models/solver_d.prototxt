@@ -2,8 +2,8 @@
 #type: "Adam"
 type: "RMSProp"
 net: "./models/d.prototxt"
-#base_lr: 0.00005
-base_lr: 0.001
+base_lr: 0.0001
+#base_lr: 0.001
 #momentum: 0.9
 weight_decay: 0.004
 lr_policy: "fixed"

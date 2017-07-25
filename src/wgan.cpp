@@ -610,12 +610,12 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 
-//	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
-//	net_d->add_before_forward(clampFunctor);
+	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
+	net_d->add_before_forward(clampFunctor);
 
 
 	unsigned int d_iter = 25;
-	unsigned int main_it = 500;
+	unsigned int main_it = 3000;
 
 	auto input = net_d->blob_by_name("data");
 	auto input_label = net_d->blob_by_name("label");
@@ -688,7 +688,7 @@ void* d_thread_fun(void* interSolverData)
 			net_d->ClearParamDiffs();
 		}
 
-		if (uiI > 0 && uiI % 100 == 0)
+		if (uiI > 0 && uiI % 10 == 0)
 		{
 			solver->Snapshot();
 		}
@@ -759,14 +759,16 @@ void* g_thread_fun(void* interSolverData)
 		mones[uiI] = 0.0;
 	}
 
-	unsigned int main_it = 500;
+	unsigned int main_it = 3000;
 
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 	input_g->Reshape({batch_size, 100, 1, 1});
 
 	auto blob_output_g = net_g->blob_by_name("gconv5");
 	auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
-	auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
+	//auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
+
+	auto input_label_d = ps_interSolverData->net_d_->blob_by_name("label");
 
 	for (unsigned int uiI = 0; uiI < main_it; uiI++)
 	{
@@ -780,21 +782,20 @@ void* g_thread_fun(void* interSolverData)
 		//----------------------------------------------------------------------
 		// Get Fake
 
-		memcpy(net_d_blob_data->mutable_cpu_data(), blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
-		memcpy(blob_output_d->mutable_cpu_data(), ones, batch_size * sizeof(float));
+		cudaMemcpy(net_d_blob_data->mutable_gpu_data(), blob_output_g->gpu_data(), batch_size * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
+		memcpy(input_label_d->mutable_cpu_data(), ones, batch_size * sizeof(float));
 
-		ps_interSolverData->net_d_->ForwardBackward();
-		const float* diff_data = net_d_blob_data->cpu_diff();
-		const float* data = net_d_blob_data->cpu_data();
+		float loss_G = ps_interSolverData->net_d_->ForwardBackward();
 
-		memcpy(blob_output_g->mutable_cpu_diff(), diff_data, batch_size * 3 * 64 * 64 * sizeof(float));
-		memcpy(blob_output_g->mutable_cpu_data(), data, batch_size * 3 * 64 * 64 * sizeof(float));
+		cudaMemcpy(blob_output_g->mutable_gpu_diff(), net_d_blob_data->gpu_diff(), batch_size * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(blob_output_g->mutable_gpu_data(), net_d_blob_data->gpu_data(), batch_size * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
 
 		solver->StepOne_BackAndUpdate();
 		//solver->Step(1);
 
 		if (uiI > 0 && uiI % 10 == 0)
 		{
+			std::cout << "loss_G: " << loss_G << std::endl;
 			memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_fix_data_, batch_size * 100 * sizeof(float));
 			net_g->Forward();
 			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
