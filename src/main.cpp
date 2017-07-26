@@ -48,11 +48,34 @@
 
 #include "CCifar10.hpp"
 
+
+enum E_CONFIG_ARGS_OPTS
+{
+	OPT_LOG,
+	OPT_PRE_TRAIN_FILE,
+	OPT_WGAN_D_SOLVER_MODEL_FILE,
+	OPT_WGAN_G_SOLVER_MODEL_FILE,
+	OPT_WGAN_D_SOLVER_STATE_FILE,
+	OPT_WGAN_G_SOLVER_STATE_FILE
+};
+
+struct S_ConfigArgs
+{
+	char* logarg_;
+	char* pretrain_file_name_;
+
+	std::string solver_d_model_;
+	std::string solver_g_model_;
+	std::string solver_d_state_;
+	std::string solver_g_state_;
+};
+
+
 int train_test(CCifar10* cifar10_data, struct S_ConfigArgs* configArgs);
 
 int main_test_2(CCifar10* cifar10_data);
 
-int main_test(CCifar10* cifar10_data);
+int main_test(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -222,20 +245,6 @@ void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10, bool is_memory_data
 	}
 }
 
-enum E_CONFIG_ARGS_OPTS
-{
-	OPT_LOG,
-	OPT_PRE_TRAIN_FILE,
-	OPT_SOLVER_MODEL_FILE,
-};
-
-struct S_ConfigArgs
-{
-	char* logarg_;
-	char* pretrain_file_name_;
-	char* model_solver_file_;
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 static void usage(char *prog)
 {
@@ -252,7 +261,10 @@ static void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **ar
 		{"help",     0, 0, 'h'},
 		{"log",      1, 0, OPT_LOG},
 		{"train-file", 1, 0, OPT_PRE_TRAIN_FILE},
-		{"solver-model", 1, 0, OPT_SOLVER_MODEL_FILE},
+		{"solver-d-model", 1, 0, OPT_WGAN_D_SOLVER_MODEL_FILE},
+		{"solver-g-model", 1, 0, OPT_WGAN_G_SOLVER_MODEL_FILE},
+		{"solver-d-state", 1, 0, OPT_WGAN_D_SOLVER_STATE_FILE},
+		{"solver-g-state", 1, 0, OPT_WGAN_G_SOLVER_STATE_FILE},
 		{0, 0, 0, 0}
 	};
 
@@ -269,12 +281,20 @@ static void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **ar
 			configArgs->pretrain_file_name_ = optarg;
 			break;
 
-		case OPT_SOLVER_MODEL_FILE:
-			configArgs->model_solver_file_ = optarg;
+		case OPT_WGAN_D_SOLVER_MODEL_FILE:
+			configArgs->solver_d_model_ = optarg;
 			break;
 
-		case 'M':
-			configArgs->model_solver_file_ = optarg;
+		case OPT_WGAN_G_SOLVER_MODEL_FILE:
+			configArgs->solver_g_model_ = optarg;
+			break;
+
+		case OPT_WGAN_D_SOLVER_STATE_FILE:
+			configArgs->solver_d_state_ = optarg;
+			break;
+
+		case OPT_WGAN_G_SOLVER_STATE_FILE:
+			configArgs->solver_g_state_= optarg;
 			break;
 
 		case 'P':
@@ -326,10 +346,22 @@ CCifar10* get_cifar10_data(const std::string& cifar_path)
 int main(int argc, char **argv)
 {
 	struct S_ConfigArgs configArgs;
+
+	configArgs.solver_d_model_.clear();
+	configArgs.solver_g_model_.clear();
+	configArgs.solver_d_state_.clear();
+	configArgs.solver_g_state_.clear();
+
 	parse_arguments(&configArgs, argc, argv);
 
 	CCifar10* cifar10_data = get_cifar10_data("./bin/cifar-10-batches-bin");
 	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
+
+	std::cout << "Arguments: " << std::endl;
+	std::cout << "solver_d_model_: " << configArgs.solver_d_model_ << std::endl;
+	std::cout << "solver_g_model_: " << configArgs.solver_g_model_ << std::endl;
+	std::cout << "solver_d_state_: " << configArgs.solver_d_state_ << std::endl;
+	std::cout << "solver_g_state_: " << configArgs.solver_g_state_ << std::endl;
 
 //    if (argc == 3 && strcmp(argv[1], "-test_file") == 0 )
 //    {
@@ -353,8 +385,9 @@ int main(int argc, char **argv)
 //        return 0;
 //    }
 
+	return 0;
 //	cifar10_data->show_test_img(1200);
-	return main_test(cifar10_data);
+	//return main_test(cifar10_data, "", "");
 	//return main_test_2(cifar10_data);
 //	return train_test(cifar10_data, &configArgs);
 

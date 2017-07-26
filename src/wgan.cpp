@@ -331,8 +331,22 @@ struct S_InterSolverData
 	float* z_data_;
 	float* z_fix_data_;
 
+	unsigned int batch_size_;
+
+	unsigned int d_iter_;
+	unsigned int main_it_;
+
 	caffe::Net<float>* net_d_;
 	caffe::Net<float>* net_g_;
+
+	float* gpu_ones_;
+	float* gpu_zeros_;
+
+	std::string solver_state_file_d_;
+	std::string solver_state_file_g_;
+
+	std::string solver_model_file_d_;
+	std::string solver_model_file_g_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -560,113 +574,74 @@ void* d_thread_fun(void* interSolverData)
 	caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif
 
-	int batch_size = 64;
-
-	float* ones = nullptr;
-	float* mones = nullptr;
-
-	ones = new float [batch_size];
-	mones = new float [batch_size];
-
-	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
-	{
-		ones[uiI] = 1.0;
-		mones[uiI] = 0.0;
-	}
-
-
-	float* ones_gpu = nullptr;
-	float* mones_gpu = nullptr;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&ones_gpu, batch_size * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&mones_gpu, batch_size * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMemcpy(ones_gpu, ones, batch_size * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(mones_gpu, mones, batch_size * sizeof(float), cudaMemcpyHostToDevice));
-#if 0
-	float* train_imgs_gpu = nullptr;
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&train_imgs_gpu, count_train * 3 * 64 * 64 * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMemcpy(train_imgs_gpu, train_imgs, count_train * 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
-
-#endif
-
 	caffe::SolverParameter solver_param;
 	boost::shared_ptr<caffe::Solver<float> > solver;
 
 	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
 	solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
+	int iter_d = 0;
+
+	if (ps_interSolverData->solver_state_file_d_.size() > 0)
+	{
+		solver->Restore(ps_interSolverData->solver_state_file_d_.c_str());
+		iter_d = solver->iter();
+	}
+
 	caffe::Net<float>* net_d = ps_interSolverData->net_d_ = solver->net().get();
 
 	pthread_barrier_wait(&solvers_barrier);
 
-	//initialize_network_weights(net_d.get());
-
-//	caffe::MemoryDataLayer<float> *dataLayer_trainnet =
-//		(caffe::MemoryDataLayer<float> *) (net_d->layer_by_name("data").get());
-//	caffe::MemoryDataLayer<float> *dataLayer_testnet =
-//		(caffe::MemoryDataLayer<float> *) (solver->test_nets()[0]->layer_by_name("data").get());
-//
-//	dataLayer_trainnet->Reset(train_imgs, train_labels, (count_train / (int)64) * 64);
-//	dataLayer_testnet->Reset(test_imgs, test_labels, (count_test / (int)64) * 64);
-
 	//--------------------------------------------------------------------------
-
-	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
-	net_d->add_before_forward(clampFunctor);
-
-
-	unsigned int d_iter = 25;
-	unsigned int main_it = 3000;
+	//initialize_network_weights(net_d.get());
+	//CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
+	//net_d->add_before_forward(clampFunctor);
 
 	auto input = net_d->blob_by_name("data");
 	auto input_label = net_d->blob_by_name("label");
-	input->Reshape({batch_size, 3, 64, 64});
-	input_label->Reshape({batch_size, 1, 1, 1});
+	input->Reshape({(int)ps_interSolverData->batch_size_, 3, 64, 64});
+	input_label->Reshape({(int)ps_interSolverData->batch_size_, 1, 1, 1});
 
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 	input_g->Reshape({64, 100, 1, 1});
 
 	std::fstream output("output.txt", std::ios_base::out);
 
-	for (unsigned int uiI = 0; uiI < main_it; uiI++)
+	for (unsigned int uiI = (iter_d / ps_interSolverData->d_iter_);
+			uiI < ps_interSolverData->main_it_ + (iter_d / ps_interSolverData->d_iter_); uiI++)
 	{
-		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 8, 8);
-		//show_grid_img_CV_32FC3(64, 64, train_imgs, 3, 1, 1);
 
 		// Discriminator and generator threads synchronization
 		takeToken(OWNER_D);
-		for (unsigned int uiJ = 0; uiJ < d_iter; uiJ++)
+		for (unsigned int uiJ = 0; uiJ < ps_interSolverData->d_iter_; uiJ++)
 		{
 			//------------------------------------------------------------------
 			// Train D with real
 
 			float* data_d = input->mutable_cpu_data();
-			memcpy(data_d, train_imgs + (uiI * batch_size * 3 * 64 * 64),
-					batch_size * 3 * 64 * 64 * sizeof(float));
+			memcpy(data_d, train_imgs + (uiI * ps_interSolverData->batch_size_ * 3 * 64 * 64),
+					ps_interSolverData->batch_size_ * 3 * 64 * 64 * sizeof(float));
 
-			cudaMemcpy(input_label->mutable_gpu_data(), ones_gpu, batch_size * sizeof(float), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(input_label->mutable_gpu_data(), ps_interSolverData->gpu_ones_, ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyDeviceToDevice);
 
 			float errorD_real = net_d->ForwardBackward();
-			//solver->Step(1);
-			//float errorD_real = net_d->blob_by_name("loss")->cpu_data()[0];
 
 			//------------------------------------------------------------------
 			// Train D with fake
-
 			recalculateZ(ps_interSolverData->z_data_);
 
 			float* data_g = input_g->mutable_cpu_data();
-			memcpy(data_g, ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
+			memcpy(data_g, ps_interSolverData->z_data_, ps_interSolverData->batch_size_ * 100 * sizeof(float));
 			ps_interSolverData->net_g_->Forward();
 			auto blob_output_g = ps_interSolverData->net_g_->blob_by_name("gconv5");
 
-			data_d = input->mutable_cpu_data();
-			memcpy(data_d, blob_output_g->cpu_data(), batch_size * 3 * 64 * 64 * sizeof(float));
-			cudaMemcpy(input_label->mutable_gpu_data(), mones_gpu, batch_size * sizeof(float), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(input->mutable_gpu_data(), blob_output_g->gpu_data(), ps_interSolverData->batch_size_ * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(input_label->mutable_gpu_data(), ps_interSolverData->gpu_zeros_, ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyDeviceToDevice);
 
 			//solver->Step(1);
 			solver->StepOne_ForBackAndUpdate();
 
-			if (uiJ == (d_iter - 1))
+			if (uiJ == (ps_interSolverData->d_iter_ - 1))
 			{
 				float errorD_fake = 0.0;
 				errorD_fake = net_d->blob_by_name("loss")->cpu_data()[0];
@@ -675,7 +650,7 @@ void* d_thread_fun(void* interSolverData)
 				std::cout << "iteration D " << uiI << std::endl;
 				std::cout << "errorD_real: " << errorD_real << std::endl;
 				std::cout << "errorD_fake: " << errorD_fake << std::endl;
-				float errorD = errorD_real - errorD_fake;
+				float errorD = errorD_real + errorD_fake;
 				std::cout << "errorD: " << errorD << std::endl;
 
 				output << "=========================================================" << std::endl;
@@ -700,13 +675,6 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 	pthread_barrier_wait(&solvers_barrier);
-
-#if 0
-	CUDA_CHECK_RETURN(cudaFree(train_imgs_gpu));
-#endif
-	CUDA_CHECK_RETURN(cudaFree(ones_gpu));
-	CUDA_CHECK_RETURN(cudaFree(mones_gpu));
-
 
 	return nullptr;
 }
@@ -740,29 +708,21 @@ void* g_thread_fun(void* interSolverData)
 	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_g.prototxt", &solver_param);
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
+	int iter_g = 0;
+	if (ps_interSolverData->solver_state_file_g_.size() > 0)
+	{
+		solver->Restore(ps_interSolverData->solver_state_file_g_.c_str());
+		iter_g = solver->iter();
+	}
+
 	caffe::Net<float>* net_g = ps_interSolverData->net_g_ = solver->net().get();
 
 
 	pthread_barrier_wait(&solvers_barrier);
-
-	float* ones = nullptr;
-	float* mones = nullptr;
-
-	int batch_size = 64;
-
-	ones = new float [batch_size];
-	mones = new float [batch_size];
-
-	for (unsigned int uiI = 0; uiI < batch_size; uiI++)
-	{
-		ones[uiI] = 1.0;
-		mones[uiI] = 0.0;
-	}
-
-	unsigned int main_it = 3000;
+	//--------------------------------------------------------------------------
 
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
-	input_g->Reshape({batch_size, 100, 1, 1});
+	input_g->Reshape({(int)ps_interSolverData->batch_size_, 100, 1, 1});
 
 	auto blob_output_g = net_g->blob_by_name("gconv5");
 	auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
@@ -770,25 +730,25 @@ void* g_thread_fun(void* interSolverData)
 
 	auto input_label_d = ps_interSolverData->net_d_->blob_by_name("label");
 
-	for (unsigned int uiI = 0; uiI < main_it; uiI++)
+	for (unsigned int uiI = iter_g; uiI < ps_interSolverData->main_it_ + iter_g; uiI++)
 	{
 		takeToken(OWNER_G);
 
 		recalculateZ(ps_interSolverData->z_data_);
 
-		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_, batch_size * 100 * sizeof(float));
+		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_, ps_interSolverData->batch_size_ * 100 * sizeof(float));
 		net_g->Forward();
 
 		//----------------------------------------------------------------------
 		// Get Fake
 
-		cudaMemcpy(net_d_blob_data->mutable_gpu_data(), blob_output_g->gpu_data(), batch_size * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
-		memcpy(input_label_d->mutable_cpu_data(), ones, batch_size * sizeof(float));
+		cudaMemcpy(net_d_blob_data->mutable_gpu_data(), blob_output_g->gpu_data(), ps_interSolverData->batch_size_ * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(input_label_d->mutable_gpu_data(), ps_interSolverData->gpu_ones_, ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyDeviceToDevice);
 
 		float loss_G = ps_interSolverData->net_d_->ForwardBackward();
 
-		cudaMemcpy(blob_output_g->mutable_gpu_diff(), net_d_blob_data->gpu_diff(), batch_size * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
-		cudaMemcpy(blob_output_g->mutable_gpu_data(), net_d_blob_data->gpu_data(), batch_size * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(blob_output_g->mutable_gpu_diff(), net_d_blob_data->gpu_diff(), ps_interSolverData->batch_size_ * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(blob_output_g->mutable_gpu_data(), net_d_blob_data->gpu_data(), ps_interSolverData->batch_size_ * 3 * 64 * 64 * sizeof(float), cudaMemcpyDeviceToDevice);
 
 		solver->StepOne_BackAndUpdate();
 		//solver->Step(1);
@@ -796,7 +756,7 @@ void* g_thread_fun(void* interSolverData)
 		if (uiI > 0 && uiI % 10 == 0)
 		{
 			std::cout << "loss_G: " << loss_G << std::endl;
-			memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_fix_data_, batch_size * 100 * sizeof(float));
+			memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_fix_data_, ps_interSolverData->batch_size_ * 100 * sizeof(float));
 			net_g->Forward();
 			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
 			//show_grid_img_CV_32FC3(64, 64, img_g_data, 3, 8, 8);
@@ -815,12 +775,40 @@ void* g_thread_fun(void* interSolverData)
 	return nullptr;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+void generate_cuda_data(S_InterSolverData* s_interSolverData)
+{
+	float* ones = new float [s_interSolverData->batch_size_];
+	float* zeros = new float [s_interSolverData->batch_size_];
+
+	for (unsigned int uiI = 0; uiI < s_interSolverData->batch_size_; uiI++)
+	{
+		ones[uiI] = 1.0;
+		zeros[uiI] = 0.0;
+	}
+
+	float* ones_gpu = nullptr;
+	float* mones_gpu = nullptr;
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&(s_interSolverData->gpu_ones_),
+								s_interSolverData->batch_size_ * sizeof(float)));
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&(s_interSolverData->gpu_zeros_),
+								s_interSolverData->batch_size_ * sizeof(float)));
+	CUDA_CHECK_RETURN(cudaMemcpy(s_interSolverData->gpu_ones_, ones,
+			s_interSolverData->batch_size_ * sizeof(float), cudaMemcpyHostToDevice));
+	CUDA_CHECK_RETURN(cudaMemcpy(s_interSolverData->gpu_zeros_, zeros,
+			s_interSolverData->batch_size_ * sizeof(float), cudaMemcpyHostToDevice));
+
+	delete[] ones;
+	delete[] zeros;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
-int main_test(CCifar10* cifar10_data)
+int main_test(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
 {
 	pthread_t thread_d = 0;
 	pthread_t thread_g = 0;
+
+	//--------------------------------------------------------------------------
 	struct S_InterSolverData s_interSolverData;
 	s_interSolverData.cifar10_ = cifar10_data;
 
@@ -828,6 +816,26 @@ int main_test(CCifar10* cifar10_data)
 	s_interSolverData.net_g_ = nullptr;
 	s_interSolverData.z_data_ = new float [64 * 100];
 	s_interSolverData.z_fix_data_ = new float [64 * 100];
+	s_interSolverData.batch_size_ = 64;
+	s_interSolverData.d_iter_ = 25;
+	s_interSolverData.main_it_ = 3000;
+
+	s_interSolverData.solver_model_file_d_.clear();
+	s_interSolverData.solver_model_file_d_ = psConfigArgs->solver_d_model_;
+	s_interSolverData.solver_model_file_g_.clear();
+	s_interSolverData.solver_model_file_g_ = psConfigArgs->solver_g_model_;
+
+	s_interSolverData.solver_state_file_d_.clear();
+	s_interSolverData.solver_state_file_d_ = psConfigArgs->solver_d_state_;
+	s_interSolverData.solver_state_file_g_.clear();
+	s_interSolverData.solver_state_file_g_ = psConfigArgs->solver_g_state_;
+
+	s_interSolverData.gpu_ones_ = nullptr;
+	s_interSolverData.gpu_zeros_ = nullptr;
+
+	generate_cuda_data(&s_interSolverData);
+	//--------------------------------------------------------------------------
+
 	current_owner = OWNER_D;
 
 	recalculateZ(s_interSolverData.z_fix_data_ );
@@ -852,6 +860,9 @@ int main_test(CCifar10* cifar10_data)
 	pthread_join(thread_g, nullptr);
 
 	delete[] s_interSolverData.z_data_;
+
+	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_ones_));
+	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_zeros_));
 
 #if 0
 

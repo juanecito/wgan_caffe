@@ -1,0 +1,9 @@
+
+./bin/wgan_release --solver-d-model a --solver-g-model b --solver-d-state c --solver-g-state d
+Arguments: 
+solver_d_model_: a
+solver_g_model_: b
+solver_d_state_: c
+solver_g_state_: d
+
+
