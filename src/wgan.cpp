@@ -57,6 +57,9 @@
 #include "CCustomLossLayerBackwardGPU.hpp"
 
 
+#include "config_args.hpp"
+
+
 static pthread_mutex_t solvers_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t solvers_cond = PTHREAD_COND_INITIALIZER;
 static pthread_barrier_t solvers_barrier;
@@ -577,7 +580,7 @@ void* d_thread_fun(void* interSolverData)
 	caffe::SolverParameter solver_param;
 	boost::shared_ptr<caffe::Solver<float> > solver;
 
-	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_d.prototxt", &solver_param);
+	caffe::ReadSolverParamsFromTextFileOrDie(ps_interSolverData->solver_model_file_d_, &solver_param);
 	solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int iter_d = 0;
@@ -705,7 +708,7 @@ void* g_thread_fun(void* interSolverData)
 
 
 	caffe::SolverParameter solver_param;
-	caffe::ReadSolverParamsFromTextFileOrDie("./models/solver_g.prototxt", &solver_param);
+	caffe::ReadSolverParamsFromTextFileOrDie(ps_interSolverData->solver_model_file_g_, &solver_param);
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int iter_g = 0;
@@ -818,7 +821,7 @@ int main_test(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.z_fix_data_ = new float [64 * 100];
 	s_interSolverData.batch_size_ = 64;
 	s_interSolverData.d_iter_ = 25;
-	s_interSolverData.main_it_ = 3000;
+	s_interSolverData.main_it_ = 300;
 
 	s_interSolverData.solver_model_file_d_.clear();
 	s_interSolverData.solver_model_file_d_ = psConfigArgs->solver_d_model_;
