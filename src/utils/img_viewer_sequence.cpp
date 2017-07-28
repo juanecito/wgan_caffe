@@ -11,6 +11,8 @@
 #include <string>
 #include <algorithm>
 #include <functional>
+#include <sstream>
+#include <iomanip>
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -25,6 +27,27 @@ void show_direct_grid_img_CV_32FC3(const std::string& name, const cv::Mat& img)
 {
 	cv::imshow(name.c_str(), img);
 	cv::waitKey();
+}
+
+bool write_img_CV_32FC3_to_jpeg_file(const std::string& name, const cv::Mat& img)
+{
+	std::string jpeg_file_name = "";
+	const static std::string ext = ".jpg";
+	std::string str_prefix = name.substr(0, 9);
+	std::string str_number = name.substr(9, name.length() - 9 - 4);
+	int number = atoi(str_number.c_str());
+	std::stringstream ss;
+	ss << str_prefix << std::setfill('0') << std::setw(4) << number << ext;
+	jpeg_file_name = ss.str();
+
+	cv::Mat newImage;
+	img.convertTo(newImage, CV_8UC3, 255.0);
+
+	std::vector<int> params = {CV_IMWRITE_JPEG_QUALITY, 100};
+
+	cv::imwrite( jpeg_file_name.c_str(), newImage, params);
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +143,8 @@ int main(int argc, char** ppcargv)
 		for (auto it : yml_file_names)
 		{
 			auto it_map = mats.find(it);
-			show_direct_grid_img_CV_32FC3(it_map->first, it_map->second);
+			//show_direct_grid_img_CV_32FC3(it_map->first, it_map->second);
+			write_img_CV_32FC3_to_jpeg_file(it_map->first, it_map->second);
 		}
 	}
 
