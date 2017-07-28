@@ -10,7 +10,7 @@ SRC_DIR := ./src
 BIN_DIR := ./bin
 OBJ_DIR := ./obj
 
-all: $(BIN_DIR)/wgan_debug $(BIN_DIR)/wgan_release $(BIN_DIR)/img_viewer
+all: $(BIN_DIR)/wgan_debug $(BIN_DIR)/wgan_release $(BIN_DIR)/img_viewer $(BIN_DIR)/img_viewer_sequence
 
 CXX_FLAGS_DEBUG := -g3 -O0
 
@@ -48,11 +48,16 @@ $(BIN_DIR)/wgan_debug: $(OBJS_DEBUG)
 $(BIN_DIR)/img_viewer: $(SRC_DIR)/utils/img_viewer.cpp
 		g++ $(CXX_FLAGS_DEBUG) $(LIBS_DEBUG) $(INC) $^ -o $@
 
+$(BIN_DIR)/img_viewer_sequence: $(SRC_DIR)/utils/img_viewer_sequence.cpp
+		g++ $(CXX_FLAGS_DEBUG) $(LIBS_DEBUG) $(INC) $^ -o $@
+
 ################################################################################
 
 clean:
 	rm -f $(BIN_DIR)/wgan_release
 	rm -f $(BIN_DIR)/wgan_debug
+	rm -f $(BIN_DIR)/img_viewer
+	rm -f $(BIN_DIR)/img_viewer_sequence
 	rm -f $(OBJ_DIR)/*.o
 
 ################################################################################

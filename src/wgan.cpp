@@ -281,7 +281,7 @@ unsigned int scale(unsigned int batch_count, unsigned int channels,
 				*data + (uiI * size_img) + c * size_img_by_channel);
 			cv::Mat img_final(final_height, final_width, CV_32FC1,
 				tranf_data + (uiI * final_size_img) + c * final_size_img_by_channel);
-			cv::resize(img_ori, img_final, size, 2.0, 2.0, CV_INTER_LINEAR);//resize image
+			cv::resize(img_ori, img_final, size, final_width / width, final_height / height, CV_INTER_LINEAR);//resize image
 		}
 	}
 	delete[] *data;
@@ -430,7 +430,8 @@ void get_data_from_cifar10(CCifar10* cifar10,
 void initialize_network_weights(caffe::Net<float>* net)
 {
 	const std::vector<std::string>& layer_names = net->layer_names();
-	std::vector<caffe::Blob<float>*>& learnable_params = const_cast<std::vector<caffe::Blob<float>*>&>(net->learnable_params());
+	std::vector<caffe::Blob<float>*>& learnable_params =
+		const_cast<std::vector<caffe::Blob<float>*>&>(net->learnable_params());
 
 	srand(time(NULL));
 	std::random_device rd;
@@ -439,11 +440,6 @@ void initialize_network_weights(caffe::Net<float>* net)
 	std::normal_distribution<float> nd_conv(0.0, 0.001);
 	std::normal_distribution<float> nd_norm(1.0, 0.02);
 	std::normal_distribution<float> nd(0.0, 0.1);
-
-//	const int n = input->count();
-//	for (int i = 0; i < n; ++i) {
-//		data[i] = nd(gen);
-//	}
 
 	unsigned int layer_index = 0;
 
@@ -454,7 +450,8 @@ void initialize_network_weights(caffe::Net<float>* net)
 		const int n = blob->count();
 		float* data = blob->mutable_cpu_data();
 
-		auto layer = const_cast<caffe::Layer<float>* >(net->layer_by_name(it_layer_name).get());
+		auto layer =
+			const_cast<caffe::Layer<float>* >(net->layer_by_name(it_layer_name).get());
 		if (it_layer_name.substr(0, 4).compare("conv") == 0)
 		{
 			for (unsigned int i = 0; i < n; ++i) data[i] = nd_conv(gen);
