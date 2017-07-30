@@ -8,7 +8,7 @@
  * Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * sudoku_solver is distributed in the hope that it will be useful, but
+ * caffe_wgan is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
@@ -17,6 +17,10 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** @file main.cpp
+ * @author Juan Maria Gomez Lopez <juanecitorr@gmail.com>
+ * @date 02 Jun 2017
+ */
 
 #include <cmath>
 #include <ctime>
@@ -26,8 +30,6 @@
 #include <algorithm>
 #include <iostream>
 #include <functional>
-
-#include <getopt.h>
 
 #include <caffe/caffe.hpp>
 
@@ -54,7 +56,7 @@ int train_test(CCifar10* cifar10_data, struct S_ConfigArgs* configArgs);
 
 //int main_test_2(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
 
-int main_test(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
+int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -225,99 +227,6 @@ void verify_img(caffe::Solver<T>* solver, CCifar10* cifar10, bool is_memory_data
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void usage(char *prog)
-{
-  fprintf(stderr, "usage: %s [-help] [-log arg] [-train-file arg] [-M arg]\n", prog);
-  exit(1);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv)
-{
-	configArgs->solver_d_model_.clear();
-	configArgs->solver_g_model_.clear();
-	configArgs->solver_d_state_.clear();
-	configArgs->solver_g_state_.clear();
-	configArgs->data_source_folder_path_.clear();
-	configArgs->run_wgan_ = 0;
-	configArgs->run_cifar10_training_ = 0;
-	configArgs->test_cifar10_ = 0;
-
-	int c, option_index, err;
-	static const char short_options[] = "W:P:C:f:n";
-	static const struct option long_options[] = {
-		{"help", no_argument, 0, 'h'},
-
-        {"run-wgan", no_argument, &(configArgs->run_wgan_), 1},
-        {"cifar10-train",   no_argument, &(configArgs->run_cifar10_training_), 1},
-        {"cifar10-test",   no_argument, &(configArgs->test_cifar10_), 1},
-
-		{"log",      required_argument, 0, OPT_LOG},
-		{"train-file", required_argument, 0, OPT_PRE_TRAIN_FILE},
-		{"solver-d-model", required_argument, 0, OPT_WGAN_D_SOLVER_MODEL_FILE},
-		{"solver-g-model", required_argument, 0, OPT_WGAN_G_SOLVER_MODEL_FILE},
-		{"solver-d-state", required_argument, 0, OPT_WGAN_D_SOLVER_STATE_FILE},
-		{"solver-g-state", required_argument, 0, OPT_WGAN_G_SOLVER_STATE_FILE},
-		{0, 0, 0, 0}
-	};
-
-	while ((c = getopt_long(argc, argv, short_options, long_options,
-					&option_index)) != -1)
-	{
-		switch (c)
-		{
-		case OPT_LOG:
-			configArgs->logarg_ = optarg;
-			break;
-
-		case OPT_PRE_TRAIN_FILE:
-			configArgs->pretrain_file_name_ = optarg;
-			break;
-
-		case OPT_WGAN_D_SOLVER_MODEL_FILE:
-			configArgs->solver_d_model_ = optarg;
-			break;
-
-		case OPT_WGAN_G_SOLVER_MODEL_FILE:
-			configArgs->solver_g_model_ = optarg;
-			break;
-
-		case OPT_WGAN_D_SOLVER_STATE_FILE:
-			configArgs->solver_d_state_ = optarg;
-			break;
-
-		case OPT_WGAN_G_SOLVER_STATE_FILE:
-			configArgs->solver_g_state_= optarg;
-			break;
-
-		case OPT_DATA_SOURCE_FOLDER_PATH:
-			configArgs->data_source_folder_path_= optarg;
-			break;
-
-		case 'W':
-			// TODO:
-			break;
-
-		case 'C':
-			// TODO:
-			break;
-
-		case 'n':
-			// TODO:
-			break;
-
-		case 'h':
-			usage(argv[0]);
-			exit(EXIT_SUCCESS);
-		default:
-			usage(argv[0]);
-			abort();
-		}
-	}
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /**
  *
  * @param cifar_path
@@ -347,7 +256,26 @@ int main(int argc, char **argv)
 
 	parse_arguments(&configArgs, argc, argv);
 
+	// Check arguments, set defaults values
+	if (configArgs.batch_size_ == 0) configArgs.batch_size_ = 64;
+	if (configArgs.z_vector_size_ == 0)configArgs.z_vector_size_ = 100;
+	if (configArgs.d_iters_by_g_iter_ == 0) configArgs.d_iters_by_g_iter_ = 25;
+	if (configArgs.main_iters_ == 0)configArgs.main_iters_ = 100;
+	if (configArgs.solver_d_model_.size() == 0)
+	{
+		configArgs.solver_d_model_ = "./models/solver_d_lr_A.prototxt";
+	}
+	if (configArgs.solver_g_model_.size() == 0)
+	{
+		configArgs.solver_g_model_ = "./models/solver_g_lr_A.prototxt";
+	}
+	if (configArgs.data_source_folder_path_.size() == 0)
+	{
+		configArgs.data_source_folder_path_ = "./bin/cifar-10-batches-bin";
+	}
+
 	std::cout << "Arguments: " << std::endl;
+	std::cout << "Log file: " << configArgs.logarg_ << std::endl;
 	std::cout << "solver_d_model_: " << configArgs.solver_d_model_ << std::endl;
 	std::cout << "solver_g_model_: " << configArgs.solver_g_model_ << std::endl;
 	std::cout << "solver_d_state_: " << configArgs.solver_d_state_ << std::endl;
@@ -355,34 +283,21 @@ int main(int argc, char **argv)
 	std::cout << "data_source_folder_path: " << configArgs.data_source_folder_path_ << std::endl;
 	std::cout << "run wgan: " << configArgs.run_wgan_ << std::endl;
 	std::cout << "run cifar10 training: " << configArgs.run_cifar10_training_ << std::endl;
-	std::cout << "run cifar10 test:: " << configArgs.test_cifar10_ << std::endl;
-
-	// Check arguments, set defaults values
-	if (configArgs.solver_d_model_.size() == 0)
-	{
-		configArgs.solver_d_model_ = "./models/solver_d_lr_A.prototxt";
-	}
-
-	if (configArgs.solver_g_model_.size() == 0)
-	{
-		configArgs.solver_d_model_ = "./models/solver_g_lr_A.prototxt";
-	}
-
-	if (configArgs.data_source_folder_path_.size() == 0)
-	{
-		configArgs.data_source_folder_path_ = "./bin/cifar-10-batches-bin";
-	}
+	std::cout << "run cifar10 test: " << configArgs.test_cifar10_ << std::endl;
+	std::cout << "batch size: " << configArgs.batch_size_ << std::endl;
+	std::cout << "z_vector_bin_file: " << configArgs.z_vector_bin_file_ << std::endl;
+	std::cout << "z_vector_size: " << configArgs.z_vector_size_ << std::endl;
+	std::cout << "d_iters_by_g_iter: " << configArgs.d_iters_by_g_iter_ << std::endl;
+	std::cout << "main_iters: " << configArgs.main_iters_ << std::endl;
 
 	CCifar10* cifar10_data = get_cifar10_data(configArgs.data_source_folder_path_);
 	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
-
-//	cifar10_data->show_test_img(1200);
 
 	int iRC = 0;
 
 	if (configArgs.run_wgan_)
 	{
-		iRC |= main_test(cifar10_data, &configArgs);
+		iRC |= wgan(cifar10_data, &configArgs);
 	}
 
 	if (configArgs.run_cifar10_training_ || configArgs.test_cifar10_)

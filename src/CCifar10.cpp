@@ -8,7 +8,7 @@
  * Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * sudoku_solver is distributed in the hope that it will be useful, but
+ * caffe_wgan is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
@@ -19,7 +19,7 @@
 
 /** @file CCifar10.cpp
  * @author Juan Maria Gomez Lopez <juanecitorr@gmail.com>
- * @date 12 Nov 2017
+ * @date 02 Jun 2017
  */
 
 #include <opencv2/core/core.hpp>

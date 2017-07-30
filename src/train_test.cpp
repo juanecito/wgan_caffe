@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*-  */
 /*
- * main.cpp
+ * train_test.cpp
  * Copyright (C) 2017 Juan Maria Gomez Lopez <juanecitorr@gmail.com>
  *
  * caffe_network is free software: you can redistribute it and/or modify it
@@ -8,7 +8,7 @@
  * Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * sudoku_solver is distributed in the hope that it will be useful, but
+ * caffe_wgan is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
@@ -17,6 +17,10 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/** @file train_test.cpp
+ * @author Juan Maria Gomez Lopez <juanecitorr@gmail.com>
+ * @date 02 Jun 2017
+ */
 
 #include <cmath>
 #include <ctime>
