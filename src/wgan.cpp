@@ -421,7 +421,7 @@ unsigned int norm2(unsigned int batch_count, unsigned int channels,
 			dev /= (double)(width * height);
 			dev = sqrt(dev);
 
-			std::cout << "mean: " << mean << "   dev: " << dev << "     ";
+			//std::cout << "mean: " << mean << "   dev: " << dev << "     ";
 
 			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
 			{
@@ -445,8 +445,8 @@ void get_data_from_cifar10(CCifar10* cifar10,
 {
 
 	auto fn_norm = [](float** data, unsigned int count) -> unsigned int {
-//		return norm(count, 3, 32, 32, data);
-		return norm2(count, 3, 32, 32, data);
+		return norm(count, 3, 32, 32, data);
+//		return norm2(count, 3, 32, 32, data);
 		};
 
 	auto fn_scale_64 = [](float** data, unsigned int count) -> unsigned int {
@@ -641,15 +641,17 @@ void* d_thread_fun(void* interSolverData)
 	for (unsigned int uiI = (current_iter_d / ps_interSolverData->d_iters_by_g_iter_);
 			uiI < max_iter_d / ps_interSolverData->d_iters_by_g_iter_; uiI++)
 	{
-
 		// Discriminator and generator threads synchronization
 		takeToken(OWNER_D);
+
+		if ((data_index * batch_size) > count_train) data_index = 0;
+		//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
+
 		for (unsigned int uiJ = 0; uiJ < ps_interSolverData->d_iters_by_g_iter_; uiJ++)
 		{
 			//------------------------------------------------------------------
 			// Train D with real
 			net_d->add_before_forward(clampFunctor);
-			if ((data_index * batch_size * 3 * 64 *64) > count_train) data_index = 0;
 
 			float* data_d = input->mutable_cpu_data();
 			memcpy(data_d, train_imgs + (data_index * batch_size * 3 * 64 * 64),
