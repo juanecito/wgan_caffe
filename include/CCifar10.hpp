@@ -145,6 +145,15 @@ class CCifar10
 						const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf);
 
 		template <typename T>
+		unsigned int __attribute__((warn_unused_result))
+			get_train_batch_img_by_label(uint8_t label_index, T** imgs);
+
+		template <typename T>
+		unsigned int __attribute__((warn_unused_result))
+			get_train_batch_img_by_label(uint8_t label_index, T** imgs,
+						const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf);
+
+		template <typename T>
 		unsigned int get_all_train_batch_img(T** imgs);
 
 		template <typename T>
@@ -283,9 +292,9 @@ unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs)
 	{
 		for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
 		{
-			tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiJ].red_channel_[uiJ];
-			tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiJ].green_channel_[uiJ];
-			tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiJ].blue_channel_[uiJ];
+			tmp_img[uiI].red_channel_[uiJ] = ori_imgs[uiI].red_channel_[uiJ];
+			tmp_img[uiI].green_channel_[uiJ] = ori_imgs[uiI].green_channel_[uiJ];
+			tmp_img[uiI].blue_channel_[uiJ] = ori_imgs[uiI].blue_channel_[uiJ];
 		}
 	}
 	*imgs = (T*)(ori_imgs);
@@ -299,6 +308,60 @@ unsigned int CCifar10::get_train_batch_img(unsigned int batch_index, T** imgs,
 				const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf)
 {
 	unsigned int count = this->get_train_batch_img(batch_index, imgs);
+
+	for (auto it_fn : vector_transf)
+	{
+		count = it_fn(imgs, count);
+	}
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int __attribute__((warn_unused_result))
+	CCifar10::get_train_batch_img_by_label(uint8_t label_index, T** imgs)
+{
+	struct S_Cifar10_img<T> tmp_img;
+
+	std::vector<struct S_Cifar10_img<T> > img_in_label;
+	img_in_label.clear();
+	unsigned int count = 0;
+
+	for (auto it_batch : ori_train_batchs_)
+	{
+		struct S_Cifar10_label_img* ori_imgs = it_batch.get();
+
+		for (unsigned int uiI = 0; uiI < cifar10_imgs_batch_s; uiI++)
+		{
+			if (ori_imgs[uiI].label_ == label_index)
+			{
+				for (unsigned int uiJ = 0; uiJ < 1024; uiJ++)
+				{
+					tmp_img.red_channel_[uiJ] = ori_imgs[uiI].red_channel_[uiJ];
+					tmp_img.green_channel_[uiJ] = ori_imgs[uiI].green_channel_[uiJ];
+					tmp_img.blue_channel_[uiJ] = ori_imgs[uiI].blue_channel_[uiJ];
+				}
+
+				img_in_label.push_back(tmp_img);
+				count++;
+			}
+		}
+	}
+
+	*imgs = new T [img_in_label.size() * sizeof(struct S_Cifar10_img<T>)];
+	memcpy(*imgs, img_in_label.data(), img_in_label.size() * sizeof(struct S_Cifar10_img<T>));
+
+	return count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename T>
+unsigned int __attribute__((warn_unused_result))
+	CCifar10::get_train_batch_img_by_label(uint8_t label_index, T** imgs,
+				const std::vector<std::function<unsigned int(T**, unsigned int)>>& vector_transf)
+{
+	unsigned int count = this->get_train_batch_img_by_label<T>(label_index, imgs);
 
 	for (auto it_fn : vector_transf)
 	{
