@@ -453,18 +453,32 @@ void get_data_from_cifar10(CCifar10* cifar10,
 		return scale(count, 3, 32, 32, data, 64, 64);
 		};
 
-	pthread_mutex_lock(&solvers_mutex);
-	*train_labels = nullptr;
-	count_train = cifar10->get_all_train_labels(train_labels);
+//	pthread_mutex_lock(&solvers_mutex);
+//	*train_labels = nullptr;
+//	count_train = cifar10->get_all_train_labels(train_labels);
+//
+//	*test_labels = nullptr;
+//	count_test = cifar10->get_all_test_labels(test_labels);
+//
+//	*train_imgs = nullptr;
+//	count_train = cifar10->get_all_train_batch_img(train_imgs, {fn_norm, fn_scale_64});
+//
+//	*test_imgs = nullptr;
+//	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
+//	pthread_mutex_unlock(&solvers_mutex);
 
-	*test_labels = nullptr;
-	count_test = cifar10->get_all_test_labels(test_labels);
+	pthread_mutex_lock(&solvers_mutex);
+//	*train_labels = nullptr;
+//	count_train = cifar10->get_all_train_labels(train_labels);
+
+//	*test_labels = nullptr;
+//	count_test = cifar10->get_all_test_labels(test_labels);
 
 	*train_imgs = nullptr;
-	count_train = cifar10->get_all_train_batch_img(train_imgs, {fn_norm, fn_scale_64});
+	count_train = cifar10->get_train_batch_img_by_label(0, train_imgs, {fn_norm, fn_scale_64});
 
-	*test_imgs = nullptr;
-	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
+//	*test_imgs = nullptr;
+//	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
 	pthread_mutex_unlock(&solvers_mutex);
 }
 
@@ -644,8 +658,9 @@ void* d_thread_fun(void* interSolverData)
 		// Discriminator and generator threads synchronization
 		takeToken(OWNER_D);
 
-		if ((data_index * batch_size) > count_train) data_index = 0;
-		//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
+		if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
+//		std::cout << "count train: " << count_train << std::endl;
+//		show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
 
 		for (unsigned int uiJ = 0; uiJ < ps_interSolverData->d_iters_by_g_iter_; uiJ++)
 		{
