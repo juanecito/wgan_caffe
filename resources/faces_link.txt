@@ -1,0 +1,9 @@
+LFW Face Database
+
+
+http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz
+
+
+
+
+http://www.mln.io/resources/datasets/

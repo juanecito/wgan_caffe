@@ -33,7 +33,7 @@
 #include <iomanip>
 #include <vector>
 #include <fstream>
-
+#include <math.h>
 #include <sys/stat.h>
 #include <pthread.h>
 
@@ -60,6 +60,8 @@
 
 #include "CCifar10.hpp"
 #include "CCustomLossLayerBackwardGPU.hpp"
+
+#include "CClampFunctor.hpp"
 
 #include "config_args.hpp"
 
@@ -390,6 +392,52 @@ unsigned int norm(unsigned int batch_count, unsigned int channels,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+unsigned int norm2(unsigned int batch_count, unsigned int channels,
+						unsigned int width, unsigned int height, float** data)
+{
+	unsigned int data_count = batch_count * channels * width * height;
+
+	for (unsigned int uiI = 0; uiI < batch_count; uiI++)
+	{
+		for (unsigned int uiJ = 0; uiJ < channels; uiJ++)
+		{
+			double mean = 0.0;
+			double dev = 0.0;
+			// Calculate mean by channel values
+			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
+			{
+				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
+				mean += X;
+			}
+
+			mean /= (double)(width * height);
+
+			// Calculate standard_dev by channel values
+			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
+			{
+				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
+				dev += pow(X - mean, 2);
+			}
+			dev /= (double)(width * height);
+			dev = sqrt(dev);
+
+			std::cout << "mean: " << mean << "   dev: " << dev << "     ";
+
+			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
+			{
+				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
+				double Z = (X - mean)/dev;
+				double XX = Z * 0.5 + 0.5; // new mean 0.5 and new dev 0.5
+				(*data)[uiI * channels * width * height + uiJ * width * height + uiK] = XX;
+			}
+
+		}
+	}
+
+	return batch_count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void get_data_from_cifar10(CCifar10* cifar10,
 		float** train_labels, float** test_labels,
 		float** train_imgs, float** test_imgs,
@@ -397,7 +445,8 @@ void get_data_from_cifar10(CCifar10* cifar10,
 {
 
 	auto fn_norm = [](float** data, unsigned int count) -> unsigned int {
-		return norm(count, 3, 32, 32, data);
+//		return norm(count, 3, 32, 32, data);
+		return norm2(count, 3, 32, 32, data);
 		};
 
 	auto fn_scale_64 = [](float** data, unsigned int count) -> unsigned int {
@@ -559,12 +608,14 @@ void* d_thread_fun(void* interSolverData)
 	solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int current_iter_d = 0;
+	int max_iter_d = solver->param().max_iter();
 	std::fstream& log_file = *(ps_interSolverData->log_file_);
 
 	if (ps_interSolverData->solver_state_file_d_.size() > 0)
 	{
 		solver->Restore(ps_interSolverData->solver_state_file_d_.c_str());
 		current_iter_d = solver->iter();
+
 	}
 
 	caffe::Net<float>* net_d = ps_interSolverData->net_d_ = solver->net().get();
@@ -573,8 +624,7 @@ void* d_thread_fun(void* interSolverData)
 
 	//--------------------------------------------------------------------------
 	//initialize_network_weights(net_d.get());
-	//CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
-	//net_d->add_before_forward(clampFunctor);
+	CClampFunctor<float>* clampFunctor = new CClampFunctor<float>(*net_d, -0.01, 0.01);
 
 	unsigned int data_index = 0;
 	unsigned int batch_size = ps_interSolverData->batch_size_;
@@ -588,10 +638,8 @@ void* d_thread_fun(void* interSolverData)
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 	input_g->Reshape({(int)batch_size, (int)z_vector_size, 1, 1});
 
-
-
 	for (unsigned int uiI = (current_iter_d / ps_interSolverData->d_iters_by_g_iter_);
-			uiI < ps_interSolverData->main_iters_ + (current_iter_d / ps_interSolverData->d_iters_by_g_iter_); uiI++)
+			uiI < max_iter_d / ps_interSolverData->d_iters_by_g_iter_; uiI++)
 	{
 
 		// Discriminator and generator threads synchronization
@@ -600,6 +648,8 @@ void* d_thread_fun(void* interSolverData)
 		{
 			//------------------------------------------------------------------
 			// Train D with real
+			net_d->add_before_forward(clampFunctor);
+			if ((data_index * batch_size * 3 * 64 *64) > count_train) data_index = 0;
 
 			float* data_d = input->mutable_cpu_data();
 			memcpy(data_d, train_imgs + (data_index * batch_size * 3 * 64 * 64),
@@ -614,6 +664,8 @@ void* d_thread_fun(void* interSolverData)
 
 			//------------------------------------------------------------------
 			// Train D with fake
+			(const_cast<std::vector<caffe::Net<float>::Callback*>&>(net_d->before_forward())).clear();
+
 			recalculateZVector(ps_interSolverData->z_data_,
 								batch_size, z_vector_size);
 
@@ -656,10 +708,10 @@ void* d_thread_fun(void* interSolverData)
 			net_d->ClearParamDiffs();
 		}
 
-		if (solver->iter() > 0 && solver->iter() % (ps_interSolverData->d_iters_by_g_iter_ * 10) == 0)
-		{
-			solver->Snapshot();
-		}
+//		if (solver->iter() > 0 && solver->iter() % (ps_interSolverData->d_iters_by_g_iter_ * 10) == 0)
+//		{
+//			solver->Snapshot();
+//		}
 
 		data_index++;
 
@@ -703,6 +755,7 @@ void* g_thread_fun(void* interSolverData)
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int current_iter_g = 0;
+	int max_iter_g = solver->param().max_iter();
 	if (ps_interSolverData->solver_state_file_g_.size() > 0)
 	{
 		solver->Restore(ps_interSolverData->solver_state_file_g_.c_str());
@@ -725,7 +778,8 @@ void* g_thread_fun(void* interSolverData)
 
 	auto input_label_d = ps_interSolverData->net_d_->blob_by_name("label");
 
-	for (unsigned int uiI = current_iter_g; uiI < ps_interSolverData->main_iters_ + current_iter_g; uiI++)
+
+	for (unsigned int uiI = current_iter_g; uiI < max_iter_g; uiI++)
 	{
 		takeToken(OWNER_G);
 
@@ -767,9 +821,15 @@ void* g_thread_fun(void* interSolverData)
 
 		if (uiI > 0 && uiI % 10 == 0)
 		{
-			memcpy(input_g->mutable_cpu_data(),
-					ps_interSolverData->z_fix_data_,
-					batch_size * z_vector_size * sizeof(float));
+//			memcpy(input_g->mutable_cpu_data(),
+//					ps_interSolverData->z_fix_data_,
+//					batch_size * z_vector_size * sizeof(float));
+
+			cudaMemcpy(input_g->mutable_gpu_data(),
+								ps_interSolverData->gpu_z_fix_data_,
+								batch_size * z_vector_size * sizeof(float),
+								cudaMemcpyDeviceToDevice);
+
 			net_g->Forward();
 			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
 			//show_grid_img_CV_32FC3(64, 64, img_g_data, 3, 8, 8);
@@ -778,10 +838,10 @@ void* g_thread_fun(void* interSolverData)
 			write_grid_img_CV_32FC3(file_name, 64, 64, img_g_data, 3, 8, 8);
 		}
 
-		if (solver->iter() > 0 && solver->iter() % 10 == 0)
-		{
-			solver->Snapshot();
-		}
+//		if (solver->iter() > 0 && solver->iter() % 10 == 0)
+//		{
+//			solver->Snapshot();
+//		}
 
 		net_g->ClearParamDiffs();
 		ps_interSolverData->net_d_->ClearParamDiffs();

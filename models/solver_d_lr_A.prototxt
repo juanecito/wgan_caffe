@@ -10,11 +10,11 @@ lr_policy: "fixed"
 gamma: 0.5
 stepsize: 500000
 display: 0
-max_iter: 5000000
-snapshot: 100000
+max_iter: 19500
+snapshot: 3250
 snapshot_prefix: "wgan_d"
 solver_mode: GPU
 #solver_mode: CPU
-test_iter: 10000
-test_interval: 10000
+test_iter: 1000000
+test_interval: 1000000
 test_initialization: false

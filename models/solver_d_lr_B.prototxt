@@ -2,7 +2,7 @@
 #type: "Adam"
 type: "RMSProp"
 net: "./models/d.prototxt"
-base_lr: 0.00001
+base_lr: 0.00005
 #base_lr: 0.001
 #momentum: 0.9
 weight_decay: 0.004
@@ -10,8 +10,8 @@ lr_policy: "fixed"
 gamma: 0.5
 stepsize: 500000
 display: 0
-max_iter: 5000000
-snapshot: 100000
+max_iter: 39000
+snapshot: 3250
 snapshot_prefix: "wgan_d"
 solver_mode: GPU
 #solver_mode: CPU
