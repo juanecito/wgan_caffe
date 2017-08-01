@@ -58,7 +58,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "CCifar10.hpp"
+#include "CLFWFaceDatabase.hpp"
 #include "CCustomLossLayerBackwardGPU.hpp"
 
 #include "CClampFunctor.hpp"
@@ -124,487 +124,65 @@ static void releaseToken(int owner)
 
 ////////////////////////////////////////////////////////////////////////////////
 void recalculateZVector(float * z_data, unsigned int batch_size,
-													unsigned int z_data_count)
-{
-	srand(time(NULL));
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::normal_distribution<float> nd(0, 1);
-
-	unsigned int n = batch_size * z_data_count * 1 * 1;
-	for (int i = 0; i < n; ++i)
-	{
-		z_data[i] = nd(gen);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool fileExists(const std::string& file_name)
-{
-	struct stat st;
-	if (stat(file_name.c_str(), &st) != 0)
-	{
-		return false;
-	}
-	else
-	{
-		if (!S_ISREG(st.st_mode))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool readZVectorFromFile(const std::string& file_name,
-	float * z_data, unsigned int batch_size, unsigned int z_data_count)
-{
-	std::fstream zVectorFile(file_name, std::ios::binary | std::ios::in);
-
-	if (!zVectorFile.is_open()) return false;
-
-	zVectorFile.read((char*)z_data, batch_size * z_data_count * sizeof(float));
-
-	zVectorFile.close();
-
-	return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool writeZVectorToFile(const std::string& file_name,
-	const float * z_data, unsigned int batch_size, unsigned int z_data_count)
-{
-	std::fstream zVectorFile(file_name, std::ios::binary | std::ios::out);
-
-	if (!zVectorFile.is_open()) return false;
-
-	zVectorFile.write((const char*)z_data, batch_size * z_data_count * sizeof(float));
-
-	zVectorFile.close();
-
-	return true;
-}
+													unsigned int z_data_count);
 
 ////////////////////////////////////////////////////////////////////////////////
 void getZVector(const std::string& z_vector_bin_file,
-								struct S_InterSolverData* ps_interSolverData)
-{
-
-
-	if (z_vector_bin_file.empty() || !fileExists(z_vector_bin_file))
-	{
-		recalculateZVector(ps_interSolverData->z_fix_data_,
-				ps_interSolverData->batch_size_,
-				ps_interSolverData->z_vector_size_);
-	}
-
-	if (!z_vector_bin_file.empty())
-	{
-		if (!fileExists(z_vector_bin_file))
-		{
-			writeZVectorToFile(z_vector_bin_file, ps_interSolverData->z_fix_data_,
-								ps_interSolverData->batch_size_,
-								ps_interSolverData->z_vector_size_);
-		}
-		else
-		{
-			readZVectorFromFile(z_vector_bin_file, ps_interSolverData->z_fix_data_,
-								ps_interSolverData->batch_size_,
-								ps_interSolverData->z_vector_size_);
-		}
-	}
-
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_z_fix_data_),
-			ps_interSolverData->batch_size_ *
-			ps_interSolverData->z_vector_size_ * sizeof(float)));
-
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_z_fix_data_,
-					ps_interSolverData->z_fix_data_,
-						ps_interSolverData->batch_size_ *
-						ps_interSolverData->z_vector_size_ *
-						sizeof(float), cudaMemcpyHostToDevice));
-}
+								struct S_InterSolverData* ps_interSolverData);
 
 ////////////////////////////////////////////////////////////////////////////////
 void show_img_CV_32FC1(unsigned int img_width, unsigned int img_height,
-														const float* img_data)
-{
-//	Test images
-	const cv::Mat img(img_width, img_height, CV_32FC1, (void*)img_data);
-	cv::imshow("cifar10", img);
-	cv::waitKey();
-}
+														const float* img_data);
 
 ////////////////////////////////////////////////////////////////////////////////
 void show_grid_img_CV_32FC3(unsigned int img_width, unsigned int img_height,
 							const float* img_data, unsigned int channels,
-							unsigned int grid_width, unsigned int grid_height)
-{
-	unsigned int img_count = grid_height * grid_width;
-	unsigned int img_size_per_channel = img_height * img_width;
-	unsigned int img_size = channels * img_size_per_channel;
-
-	unsigned int grid_img_count = img_count * img_size;
-
-	float* tranf_img_data = new float [grid_img_count];
-
-	for (unsigned int y_grid = 0; y_grid < grid_height; y_grid++)
-	{
-		for (unsigned int x_grid = 0; x_grid < grid_width; x_grid++)
-		{
-			for (unsigned int y_img = 0; y_img < img_height; y_img++)
-			{
-				for (unsigned int x_img = 0; x_img < img_width; x_img++)
-				{
-					unsigned int tranf_img_data_index =
-								y_grid * grid_width * img_size +
-								y_img * grid_width * img_width * channels +
-								x_grid * (img_width * channels) +
-								x_img * channels;
-
-					unsigned int img_data_index =
-								(y_grid * grid_width + x_grid) * img_size
-													+ y_img * img_width + x_img;
-
-					for (unsigned int c = 0; c < channels; c++)
-					{
-						tranf_img_data[tranf_img_data_index + c] =
-							img_data[img_data_index + c * img_size_per_channel];
-					}
-				}
-			}
-		}
-	}
-
-	const cv::Mat img(img_width * grid_width, img_height * grid_height,
-													CV_32FC3, tranf_img_data);
-	cv::imshow("cifar10_generator", img);
-	cv::waitKey();
-
-	delete[] tranf_img_data;
-}
+							unsigned int grid_width, unsigned int grid_height);
 
 ////////////////////////////////////////////////////////////////////////////////
 void write_grid_img_CV_32FC3(const std::string& file_name,
 	unsigned int img_width, unsigned int img_height, const float* img_data,
-	unsigned int channels, unsigned int grid_width, unsigned int grid_height)
-{
-	unsigned int img_count = grid_height * grid_width;
-	unsigned int img_size_per_channel = img_height * img_width;
-	unsigned int img_size = channels * img_size_per_channel;
-
-	unsigned int grid_img_count = img_count * img_size;
-
-	float* tranf_img_data = new float [grid_img_count];
-
-	for (unsigned int y_grid = 0; y_grid < grid_height; y_grid++)
-	{
-		for (unsigned int x_grid = 0; x_grid < grid_width; x_grid++)
-		{
-			for (unsigned int y_img = 0; y_img < img_height; y_img++)
-			{
-				for (unsigned int x_img = 0; x_img < img_width; x_img++)
-				{
-					unsigned int tranf_img_data_index =
-								y_grid * grid_width * img_size +
-								y_img * grid_width * img_width * channels +
-								x_grid * (img_width * channels) +
-								x_img * channels;
-
-					unsigned int img_data_index =
-									(y_grid * grid_width + x_grid) * img_size
-													+ y_img * img_width + x_img;
-
-					for (unsigned int c = 0; c < channels; c++)
-					{
-						tranf_img_data[tranf_img_data_index + c] =
-							img_data[img_data_index + c * img_size_per_channel];
-					}
-
-				}
-			}
-		}
-	}
-
-	const cv::Mat img(img_width * grid_width, img_height * grid_height,
-													CV_32FC3, tranf_img_data);
-
-	cv::FileStorage fs(file_name.c_str(), cv::FileStorage::WRITE);
-	fs << "grid_img" << img;
-	fs.release();
-
-	delete[] tranf_img_data;
-}
-
+	unsigned int channels, unsigned int grid_width, unsigned int grid_height);
 
 ////////////////////////////////////////////////////////////////////////////////
 unsigned int scale(unsigned int batch_count, unsigned int channels,
 			unsigned int width, unsigned int height, float** data,
-			unsigned int final_width, unsigned int final_height)
-{
-	unsigned int data_count = batch_count * channels * width * height;
-	unsigned int new_data_count =
-						batch_count * channels * final_width * final_height;
-	float* tranf_data = new float[new_data_count];
-	memset(tranf_data, 0, new_data_count * sizeof(float));
-
-	cv::Size size(final_width, final_height);
-
-	unsigned int size_img_by_channel = width * height;
-	unsigned int size_img = width * height * channels;
-
-	unsigned int final_size_img_by_channel = final_width * final_height;
-	unsigned int final_size_img = final_width * final_height * channels;
-
-	for (unsigned int uiI = 0; uiI < batch_count; uiI++)
-	{
-		for (unsigned int c = 0; c < channels; c++)
-		{
-			cv::Mat img_ori(height, width, CV_32FC1,
-				*data + (uiI * size_img) + c * size_img_by_channel);
-			cv::Mat img_final(final_height, final_width, CV_32FC1,
-				tranf_data + (uiI * final_size_img) +
-												c * final_size_img_by_channel);
-			cv::resize(img_ori, img_final, size, final_width / width,
-						final_height / height, CV_INTER_LINEAR);//resize image
-		}
-	}
-	delete[] *data;
-	*data = tranf_data;
-
-	return batch_count;
-}
+			unsigned int final_width, unsigned int final_height);
 
 ////////////////////////////////////////////////////////////////////////////////
 unsigned int norm(unsigned int batch_count, unsigned int channels,
-						unsigned int width, unsigned int height, float** data)
-{
-	unsigned int data_count = batch_count * channels * width * height;
-
-	for (unsigned int uiI = 0; uiI < data_count; uiI++)
-	{
-		(*data)[uiI] /= 255.0;
-	}
-
-	return batch_count;
-}
+						unsigned int width, unsigned int height, float** data);
 
 ////////////////////////////////////////////////////////////////////////////////
 unsigned int norm2(unsigned int batch_count, unsigned int channels,
-						unsigned int width, unsigned int height, float** data)
-{
-	unsigned int data_count = batch_count * channels * width * height;
-
-	for (unsigned int uiI = 0; uiI < batch_count; uiI++)
-	{
-		for (unsigned int uiJ = 0; uiJ < channels; uiJ++)
-		{
-			double mean = 0.0;
-			double dev = 0.0;
-			// Calculate mean by channel values
-			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
-			{
-				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
-				mean += X;
-			}
-
-			mean /= (double)(width * height);
-
-			// Calculate standard_dev by channel values
-			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
-			{
-				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
-				dev += pow(X - mean, 2);
-			}
-			dev /= (double)(width * height);
-			dev = sqrt(dev);
-
-			//std::cout << "mean: " << mean << "   dev: " << dev << "     ";
-
-			for (unsigned int uiK = 0; uiK < (width * height); uiK++)
-			{
-				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
-				double Z = (X - mean)/dev;
-				double XX = Z * 0.5 + 0.5; // new mean 0.5 and new dev 0.5
-				(*data)[uiI * channels * width * height + uiJ * width * height + uiK] = XX;
-			}
-
-		}
-	}
-
-	return batch_count;
-}
+						unsigned int width, unsigned int height, float** data);
 
 ////////////////////////////////////////////////////////////////////////////////
-void get_data_from_cifar10(CCifar10* cifar10,
-		float** train_labels, float** test_labels,
-		float** train_imgs, float** test_imgs,
-		unsigned int& count_train, unsigned int& count_test)
+void get_data_from_faces(CLFWFaceDatabase* faces_data,
+		float** train_imgs, unsigned int& count_train)
 {
 
 	auto fn_norm = [](float** data, unsigned int count) -> unsigned int {
 		return norm(count, 3, 32, 32, data);
 		};
 
-	auto fn_scale_64 = [](float** data, unsigned int count) -> unsigned int {
-		return scale(count, 3, 32, 32, data, 64, 64);
-		};
-
-//	pthread_mutex_lock(&solvers_mutex);
-//	*train_labels = nullptr;
-//	count_train = cifar10->get_all_train_labels(train_labels);
-//
-//	*test_labels = nullptr;
-//	count_test = cifar10->get_all_test_labels(test_labels);
-//
-//	*train_imgs = nullptr;
-//	count_train = cifar10->get_all_train_batch_img(train_imgs, {fn_norm, fn_scale_64});
-//
-//	*test_imgs = nullptr;
-//	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
-//	pthread_mutex_unlock(&solvers_mutex);
-
 	pthread_mutex_lock(&solvers_mutex);
-//	*train_labels = nullptr;
-//	count_train = cifar10->get_all_train_labels(train_labels);
-
-//	*test_labels = nullptr;
-//	count_test = cifar10->get_all_test_labels(test_labels);
 
 	*train_imgs = nullptr;
-	count_train = cifar10->get_train_batch_img_by_label(0, train_imgs, {fn_norm, fn_scale_64});
+	count_train = faces_data->get_imgs(train_imgs, {fn_norm});
 
-//	*test_imgs = nullptr;
-//	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
 	pthread_mutex_unlock(&solvers_mutex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void initialize_network_weights(caffe::Net<float>* net)
-{
-	const std::vector<std::string>& layer_names = net->layer_names();
-	std::vector<caffe::Blob<float>*>& learnable_params =
-		const_cast<std::vector<caffe::Blob<float>*>&>(net->learnable_params());
-
-	srand(time(NULL));
-	std::random_device rd;
-	std::mt19937 gen(rd());
-
-	std::normal_distribution<float> nd_conv(0.0, 0.001);
-	std::normal_distribution<float> nd_norm(1.0, 0.02);
-	std::normal_distribution<float> nd(0.0, 0.1);
-
-	unsigned int layer_index = 0;
-
-	for (auto it_layer_name : layer_names)
-	{
-		std::cout << "Layer: " << it_layer_name << std::endl;
-		caffe::Blob<float>* blob = learnable_params.at(layer_index);
-		const int n = blob->count();
-		float* data = blob->mutable_cpu_data();
-
-		auto layer =
-			const_cast<caffe::Layer<float>* >(net->layer_by_name(it_layer_name).get());
-		if (it_layer_name.substr(0, 4).compare("conv") == 0)
-		{
-			for (unsigned int i = 0; i < n; ++i) data[i] = nd_conv(gen);
-		}
-		else if (it_layer_name.substr(0, 4).compare("norm") == 0)
-		{
-			for (unsigned int i = 0; i < n; ++i) data[i] = nd_norm(gen);
-		}
-		else
-		{
-			for (unsigned int i = 0; i < n; ++i) data[i] = nd(gen);
-		}
-		layer_index++;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template<typename T>
-void show_blobs(caffe::Net<T>* net)
-{
-	const std::vector<std::string>& blobs_names = net->blob_names();
-
-	for (auto it : blobs_names)
-	{
-		std::cout << "===========================================" << std::endl;
-		std::cout << it << std::endl;
-		auto blob = net->blob_by_name(it);
-
-		unsigned int count = blob->count();
-		const float* data = blob->cpu_data();
-		for (unsigned int uiI = 0; uiI < count; uiI++)
-		{
-			if (uiI % 100 == 0) std::cout << std::endl;
-			std::cout << std::setprecision(10) << data[uiI] << " ";
-		}
-		std::cout << std::endl << "==============================" << std::endl;
-		std::cout << std::endl << std::endl;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template<typename T>
-void show_learneable_params(caffe::Net<T>* net)
-{
-	const std::vector<caffe::Blob<T>*>& learnable_params = net->learnable_params();
-
-	for (auto blob : learnable_params)
-	{
-		unsigned int count = blob->count();
-		const float* data = blob->cpu_data();
-		std::cout << "===========================================" << std::endl;
-		for (unsigned int uiI = 0; uiI < count; uiI++)
-		{
-			if (uiI % 100 == 0) std::cout << std::endl;
-			std::cout << std::setprecision(10) << data[uiI] << " ";
-		}
-		std::cout << std::endl << "==============================" << std::endl;
-		std::cout << std::endl << std::endl;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template<typename T>
-void show_outputs_blobs(caffe::Net<T>* net)
-{
-	const std::vector<caffe::Blob<float>*>& output_blobs = net->output_blobs();
-
-	for (auto it_blob : output_blobs)
-	{
-		unsigned int count = it_blob->count();
-		const float* data = it_blob->cpu_data();
-		std::cout << "===========================================" << std::endl;
-		for (unsigned int uiI = 0; uiI < count; uiI++)
-		{
-			if (uiI % 100 == 0) std::cout << std::endl;
-			std::cout << std::setprecision(10) << data[uiI] << " ";
-		}
-
-	}
-	std::cout << std::endl << "==================================" << std::endl;
-	std::cout << std::endl << std::endl;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void* d_thread_fun(void* interSolverData)
+static void* d_thread_fun(void* interSolverData)
 {
 	S_InterSolverData* ps_interSolverData = (S_InterSolverData*)interSolverData;
 
-	float* train_labels = nullptr;
-	float* test_labels = nullptr;
 	float* train_imgs = nullptr;
-	float* test_imgs = nullptr;
 	unsigned int count_train = 0;
-	unsigned int count_test = 0;
-
-	get_data_from_cifar10(ps_interSolverData->cifar10_,
-			&train_labels, &test_labels, &train_imgs, &test_imgs,
-			count_train, count_test);
+	get_data_from_faces(ps_interSolverData->faces_data,
+			&train_imgs, count_train);
 
 	//--------------------------------------------------------------------------
 
@@ -741,20 +319,14 @@ void* d_thread_fun(void* interSolverData)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* g_thread_fun(void* interSolverData)
+static void* g_thread_fun(void* interSolverData)
 {
 	S_InterSolverData* ps_interSolverData = (S_InterSolverData*)interSolverData;
 
-	float* train_labels = nullptr;
-	float* test_labels = nullptr;
 	float* train_imgs = nullptr;
-	float* test_imgs = nullptr;
 	unsigned int count_train = 0;
-	unsigned int count_test = 0;
-
-	get_data_from_cifar10(ps_interSolverData->cifar10_,
-			&train_labels, &test_labels, &train_imgs, &test_imgs,
-			count_train, count_test);
+	get_data_from_faces(ps_interSolverData->faces_data,
+			&train_imgs, count_train);
 
 	//--------------------------------------------------------------------------
 
@@ -869,7 +441,7 @@ void* g_thread_fun(void* interSolverData)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void generate_cuda_data(S_InterSolverData* ps_interSolverData)
+static void generate_cuda_data(S_InterSolverData* ps_interSolverData)
 {
 	float* ones = new float [ps_interSolverData->batch_size_];
 	float* zeros = new float [ps_interSolverData->batch_size_];
@@ -892,57 +464,18 @@ void generate_cuda_data(S_InterSolverData* ps_interSolverData)
 	delete[] ones;
 	delete[] zeros;
 
-	//--------------------------------------------------------------------------
-	/*
-	float* train_labels = nullptr;
-	float* test_labels = nullptr;
-	float* train_imgs = nullptr;
-	float* test_imgs = nullptr;
-	unsigned int count_train = 0;
-	unsigned int count_test = 0;
-
-	get_data_from_cifar10(ps_interSolverData->cifar10_,
-			&train_labels, &test_labels, &train_imgs, &test_imgs,
-			count_train, count_test);
-
-	ps_interSolverData->train_labels_ = train_labels;
-	ps_interSolverData->test_labels_ = test_labels;
-	ps_interSolverData->train_imgs_ = train_imgs;
-	ps_interSolverData->test_imgs_ = test_imgs;
-	ps_interSolverData->count_train_ = count_train;
-	ps_interSolverData->count_test_ = count_test;
-
-
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_train_labels_),
-			count_train * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_test_labels_),
-			count_test * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_train_imgs_),
-			count_train * 3 * 64 * 64 * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_test_imgs_),
-			count_test * 3 * 64 * 64 * sizeof(float)));
-
-
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_train_labels_, train_labels,
-			count_train * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_test_labels_, test_labels,
-			count_test * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_train_imgs_, train_imgs,
-			count_train * 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_test_imgs_, test_imgs,
-			count_test * 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
-	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
+int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 {
 	pthread_t thread_d = 0;
 	pthread_t thread_g = 0;
 
 	//--------------------------------------------------------------------------
 	struct S_InterSolverData s_interSolverData;
-	s_interSolverData.cifar10_ = cifar10_data;
+	s_interSolverData.cifar10_ = nullptr;
+	s_interSolverData.faces_data = faces_data;
 
 	s_interSolverData.net_d_ = nullptr;
 	s_interSolverData.net_g_ = nullptr;

@@ -31,6 +31,7 @@
 #include <caffe/caffe.hpp>
 
 #include "CCifar10.hpp"
+#include "CLFWFaceDatabase.hpp"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,6 +83,7 @@ struct S_ConfigArgs
 struct S_InterSolverData
 {
 	CCifar10* cifar10_;
+	CLFWFaceDatabase* faces_data;
 
 	unsigned int z_vector_size_;
 	float* z_data_;

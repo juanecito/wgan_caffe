@@ -49,6 +49,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "CCifar10.hpp"
+#include "CLFWFaceDatabase.hpp"
 #include "config_args.hpp"
 
 
@@ -57,6 +58,7 @@ int train_test(CCifar10* cifar10_data, struct S_ConfigArgs* configArgs);
 //int main_test_2(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
 
 int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
+int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs);
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -243,6 +245,14 @@ CCifar10* get_cifar10_data(const std::string& cifar_path)
 	return cifar10;
 }
 
+CLFWFaceDatabase* get_faces_data(const std::string& path)
+{
+	CLFWFaceDatabase* faces_data = new CLFWFaceDatabase();
+	faces_data->set_path(path);
+	faces_data->load();
+	return faces_data;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /**
  *
@@ -293,11 +303,15 @@ int main(int argc, char **argv)
 	CCifar10* cifar10_data = get_cifar10_data(configArgs.data_source_folder_path_);
 	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
 
+	//CLFWFaceDatabase* faces_data = get_faces_data(configArgs.data_source_folder_path_);
+	CLFWFaceDatabase* faces_data = get_faces_data("./bin/data/lfw_funneled");
+
 	int iRC = 0;
 
 	if (configArgs.run_wgan_)
 	{
-		iRC |= wgan(cifar10_data, &configArgs);
+		//iRC |= wgan(cifar10_data, &configArgs);
+		iRC |= wgan_faces(faces_data, &configArgs);
 	}
 
 	if (configArgs.run_cifar10_training_ || configArgs.test_cifar10_)

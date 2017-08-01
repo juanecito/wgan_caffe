@@ -1,9 +1,16 @@
-
-./bin/wgan_release --solver-d-model a --solver-g-model b --solver-d-state c --solver-g-state d
+./bin/wgan_release --run-wgan --log ./wgan.log --batch-size 64 --d-iters-by-g-iter 25 --main-iter 780 --z-vector-bin-file ./z_vector.bin --z-vector-size 100 --solver-d-model ./models/solver_d_lr_A.prototxt --solver-g-model ./models/solver_g_lr_A.prototxt
 Arguments: 
-solver_d_model_: a
-solver_g_model_: b
-solver_d_state_: c
-solver_g_state_: d
-
-
+Log file: ./wgan.log
+solver_d_model_: ./models/solver_d_lr_A.prototxt
+solver_g_model_: ./models/solver_g_lr_A.prototxt
+solver_d_state_: 
+solver_g_state_: 
+data_source_folder_path: ./bin/cifar-10-batches-bin
+run wgan: 1
+run cifar10 training: 0
+run cifar10 test: 0
+batch size: 64
+z_vector_bin_file: ./z_vector.bin
+z_vector_size: 100
+d_iters_by_g_iter: 25
+main_iters: 780
