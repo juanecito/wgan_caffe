@@ -34,13 +34,11 @@ SOLVER_G_MODEL_A=./models/solver_g_lr_A.prototxt
 # Learning rate in B models is base_lr: 0.00001
 SOLVER_D_MODEL_B=./models/solver_d_lr_B.prototxt
 SOLVER_G_MODEL_B=./models/solver_g_lr_B.prototxt
-SOLVER_D_STATE_B=./wgan_d_iter_19500.solverstate
 SOLVER_G_STATE_B=./wgan_g_iter_780.solverstate
 
 # Learning rate in C models is base_lr: 0.000001
 SOLVER_D_MODEL_C=./models/solver_d_lr_C.prototxt
 SOLVER_G_MODEL_C=./models/solver_g_lr_C.prototxt
-SOLVER_D_STATE_C=./wgan_d_iter_39000.solverstate
 SOLVER_G_STATE_C=./wgan_g_iter_1560.solverstate
 
 SOLVER_D_STATE_D=./wgan_d_iter_58500.solverstate
@@ -51,14 +49,14 @@ LOG_FILE=./wgan.log
 
 BATCH_SIZE=64
 
-ITER_D_BY_G=25
+ITER_D_BY_G=5
 TOTAL_ITERS=780
 
 ################################################################################
 
 . ./wgan_exports
 
-if ! [ -f "${SOLVER_D_STATE_B}" ]; then
+if ! [ -f "${SOLVER_G_STATE_B}" ]; then
 	${WGAN_BIN_FILE} --run-wgan --log ${LOG_FILE} --batch-size ${BATCH_SIZE} \
 				--d-iters-by-g-iter ${ITER_D_BY_G} --main-iter ${TOTAL_ITERS} \
 				--z-vector-bin-file ${Z_VECTOR_BIN_FILE} \
@@ -68,7 +66,9 @@ if ! [ -f "${SOLVER_D_STATE_B}" ]; then
 				
 fi
 
-if ! [ -f "${SOLVER_D_STATE_C}" ] && [ -f "${SOLVER_D_STATE_B}" ] && [ -f "${SOLVER_G_STATE_B}" ]; then
+SOLVER_D_STATE_B=`ls -1rt wgan_d_iter_*solverstate | tail -1`
+
+if ! [ -f "${SOLVER_G_STATE_C}" ] && [ -f "${SOLVER_G_STATE_B}" ]; then
 	${WGAN_BIN_FILE} --run-wgan --log ${LOG_FILE} --batch-size ${BATCH_SIZE} \
 				--d-iters-by-g-iter ${ITER_D_BY_G} --main-iter ${TOTAL_ITERS} \
 				--z-vector-bin-file ${Z_VECTOR_BIN_FILE} \
@@ -80,7 +80,9 @@ if ! [ -f "${SOLVER_D_STATE_C}" ] && [ -f "${SOLVER_D_STATE_B}" ] && [ -f "${SOL
 
 fi
 
-if ! [ -f "${SOLVER_D_STATE_D}" ] && [ -f "${SOLVER_D_STATE_C}" ] && [ -f "${SOLVER_G_STATE_C}" ]; then
+SOLVER_D_STATE_C=`ls -1rt wgan_d_iter_*solverstate | tail -1`
+
+if ! [ -f "${SOLVER_G_STATE_D}" ] && [ -f "${SOLVER_G_STATE_C}" ]; then
 	${WGAN_BIN_FILE} --run-wgan --log ${LOG_FILE} --batch-size ${BATCH_SIZE} \
 				--d-iters-by-g-iter ${ITER_D_BY_G} --main-iter ${TOTAL_ITERS} \
 				--z-vector-bin-file ${Z_VECTOR_BIN_FILE} \

@@ -98,6 +98,9 @@ struct S_InterSolverData
 	caffe::Net<float>* net_d_;
 	caffe::Net<float>* net_g_;
 
+	unsigned int current_iter_;
+	unsigned int max_iter_;
+
 	//--------------------------------------------------------------------------
 	float* gpu_ones_;
 	float* gpu_zeros_;
