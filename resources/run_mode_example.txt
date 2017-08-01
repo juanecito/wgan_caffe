@@ -14,3 +14,50 @@ z_vector_bin_file: ./z_vector.bin
 z_vector_size: 100
 d_iters_by_g_iter: 25
 main_iters: 780
+
+
+
+
+
+/bin/bash -x ./launch_wgan_caffe.sh 
++ WGAN_BIN_FILE=./bin/wgan_release
++ SOLVER_D_MODEL_A=./models/solver_d_lr_A.prototxt
++ SOLVER_G_MODEL_A=./models/solver_g_lr_A.prototxt
++ SOLVER_D_MODEL_B=./models/solver_d_lr_B.prototxt
++ SOLVER_G_MODEL_B=./models/solver_g_lr_B.prototxt
++ SOLVER_G_STATE_B=./wgan_g_iter_780.solverstate
++ SOLVER_D_MODEL_C=./models/solver_d_lr_C.prototxt
++ SOLVER_G_MODEL_C=./models/solver_g_lr_C.prototxt
++ SOLVER_G_STATE_C=./wgan_g_iter_1560.solverstate
++ SOLVER_D_STATE_D=./wgan_d_iter_58500.solverstate
++ Z_VECTOR_BIN_FILE=./z_vector.bin
++ Z_VECTOR_SIZE=100
++ LOG_FILE=./wgan.log
++ BATCH_SIZE=64
++ ITER_D_BY_G=5
++ TOTAL_ITERS=780
++ . ./wgan_exports
+++ export LD_LIBRARY_PATH=../my_caffe/build_d/lib:../my_caffe/build_r/lib
+++ LD_LIBRARY_PATH=../my_caffe/build_d/lib:../my_caffe/build_r/lib
++ '[' -f ./wgan_g_iter_780.solverstate ']'
+++ ls -1rt wgan_d_iter_3250.solverstate
+++ tail -1
++ SOLVER_D_STATE_B=wgan_d_iter_3250.solverstate
++ '[' -f ./wgan_g_iter_1560.solverstate ']'
++ '[' -f ./wgan_g_iter_780.solverstate ']'
++ ./bin/wgan_release --run-wgan --log ./wgan.log --batch-size 64 --d-iters-by-g-iter 5 --main-iter 780 --z-vector-bin-file ./z_vector.bin --z-vector-size 100 --solver-d-model ./models/solver_d_lr_B.prototxt --solver-g-model ./models/solver_g_lr_B.prototxt --solver-d-state wgan_d_iter_3250.solverstate --solver-g-state ./wgan_g_iter_780.solverstate
+Arguments: 
+Log file: ./wgan.log
+solver_d_model_: ./models/solver_d_lr_B.prototxt
+solver_g_model_: ./models/solver_g_lr_B.prototxt
+solver_d_state_: wgan_d_iter_3250.solverstate
+solver_g_state_: ./wgan_g_iter_780.solverstate
+data_source_folder_path: ./bin/cifar-10-batches-bin
+run wgan: 1
+run cifar10 training: 0
+run cifar10 test: 0
+batch size: 64
+z_vector_bin_file: ./z_vector.bin
+z_vector_size: 100
+d_iters_by_g_iter: 5
+main_iters: 780
