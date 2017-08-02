@@ -428,6 +428,10 @@ unsigned int norm2(unsigned int batch_count, unsigned int channels,
 				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
 				double Z = (X - mean)/dev;
 				double XX = Z * 0.5 + 0.5; // new mean 0.5 and new dev 0.5
+
+				//if (XX < 0.0) XX = 0.0;
+				//else if (XX > 1.0) XX = 1.0;
+
 				(*data)[uiI * channels * width * height + uiJ * width * height + uiK] = XX;
 			}
 
@@ -591,7 +595,7 @@ void show_outputs_blobs(caffe::Net<T>* net)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* d_thread_fun(void* interSolverData)
+static void* d_thread_fun(void* interSolverData)
 {
 	S_InterSolverData* ps_interSolverData = (S_InterSolverData*)interSolverData;
 
@@ -730,8 +734,6 @@ void* d_thread_fun(void* interSolverData)
 			}
 			net_d->ClearParamDiffs();
 			data_index++;
-
-
 		}
 
 		if (uiI > ps_interSolverData->current_iter_ && uiI == (ps_interSolverData->main_iters_ - 1))
@@ -749,7 +751,7 @@ void* d_thread_fun(void* interSolverData)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* g_thread_fun(void* interSolverData)
+static void* g_thread_fun(void* interSolverData)
 {
 	S_InterSolverData* ps_interSolverData = (S_InterSolverData*)interSolverData;
 
@@ -875,7 +877,7 @@ void* g_thread_fun(void* interSolverData)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void generate_cuda_data(S_InterSolverData* ps_interSolverData)
+static void generate_cuda_data(S_InterSolverData* ps_interSolverData)
 {
 	float* ones = new float [ps_interSolverData->batch_size_];
 	float* zeros = new float [ps_interSolverData->batch_size_];

@@ -310,8 +310,8 @@ int main(int argc, char **argv)
 
 	if (configArgs.run_wgan_)
 	{
-		iRC |= wgan(cifar10_data, &configArgs);
-		//iRC |= wgan_faces(faces_data, &configArgs);
+		//iRC |= wgan(cifar10_data, &configArgs);
+		iRC |= wgan_faces(faces_data, &configArgs);
 	}
 
 	if (configArgs.run_cifar10_training_ || configArgs.test_cifar10_)

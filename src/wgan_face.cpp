@@ -163,7 +163,7 @@ void get_data_from_faces(CLFWFaceDatabase* faces_data,
 {
 
 	auto fn_norm = [](float** data, unsigned int count) -> unsigned int {
-		return norm(count, 3, 32, 32, data);
+		return norm(count, 3, 64, 64, data);
 		};
 
 	pthread_mutex_lock(&solvers_mutex);
@@ -229,18 +229,25 @@ static void* d_thread_fun(void* interSolverData)
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 	input_g->Reshape({(int)batch_size, (int)z_vector_size, 1, 1});
 
-	for (unsigned int uiI = (current_iter_d / ps_interSolverData->d_iters_by_g_iter_);
-			uiI < max_iter_d / ps_interSolverData->d_iters_by_g_iter_; uiI++)
+	unsigned int d_iter_by_g_real = 0;
+
+
+	for (unsigned int uiI = ps_interSolverData->current_iter_;
+			uiI < ps_interSolverData->max_iter_; uiI++)
 	{
 		// Discriminator and generator threads synchronization
 		takeToken(OWNER_D);
 
-		if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
-//		std::cout << "count train: " << count_train << std::endl;
-//		show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
+		if (uiI < 25 || uiI % 500 == 0){ d_iter_by_g_real = 100; }
+		else { d_iter_by_g_real = ps_interSolverData->d_iters_by_g_iter_; }
 
-		for (unsigned int uiJ = 0; uiJ < ps_interSolverData->d_iters_by_g_iter_; uiJ++)
+		for (unsigned int uiJ = 0; uiJ < d_iter_by_g_real; uiJ++)
 		{
+
+			if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
+			//std::cout << "count train: " << count_train << std::endl;
+			//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
+
 			//------------------------------------------------------------------
 			// Train D with real
 			net_d->add_before_forward(clampFunctor);
@@ -281,7 +288,7 @@ static void* d_thread_fun(void* interSolverData)
 
 			solver->StepOne_ForBackAndUpdate();
 
-			if (uiJ == (ps_interSolverData->d_iters_by_g_iter_ - 1))
+			if (uiJ == (d_iter_by_g_real - 1))
 			{
 				float errorD_fake = 0.0;
 				errorD_fake = net_d->blob_by_name("loss")->cpu_data()[0];
@@ -300,14 +307,13 @@ static void* d_thread_fun(void* interSolverData)
 				log_file.flush();
 			}
 			net_d->ClearParamDiffs();
+			data_index++;
 		}
 
-//		if (solver->iter() > 0 && solver->iter() % (ps_interSolverData->d_iters_by_g_iter_ * 10) == 0)
-//		{
-//			solver->Snapshot();
-//		}
-
-		data_index++;
+		if (uiI > ps_interSolverData->current_iter_ && uiI == (ps_interSolverData->main_iters_ - 1))
+		{
+			solver->Snapshot();
+		}
 
 		releaseToken(OWNER_D);
 	}
@@ -349,6 +355,9 @@ static void* g_thread_fun(void* interSolverData)
 		solver->Restore(ps_interSolverData->solver_state_file_g_.c_str());
 		current_iter_g = solver->iter();
 	}
+
+	ps_interSolverData->current_iter_ = current_iter_g;
+	ps_interSolverData->max_iter_ = max_iter_g;
 
 	caffe::Net<float>* net_g = ps_interSolverData->net_g_ = solver->net().get();
 	pthread_barrier_wait(&solvers_barrier);
@@ -426,11 +435,6 @@ static void* g_thread_fun(void* interSolverData)
 			write_grid_img_CV_32FC3(file_name, 64, 64, img_g_data, 3, 8, 8);
 		}
 
-//		if (solver->iter() > 0 && solver->iter() % 10 == 0)
-//		{
-//			solver->Snapshot();
-//		}
-
 		net_g->ClearParamDiffs();
 		ps_interSolverData->net_d_->ClearParamDiffs();
 		releaseToken(OWNER_G);
@@ -487,6 +491,9 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.z_fix_data_ = new float [s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_];
 	s_interSolverData.d_iters_by_g_iter_ = psConfigArgs->d_iters_by_g_iter_;
 	s_interSolverData.main_iters_ = psConfigArgs->main_iters_;
+
+	s_interSolverData.current_iter_ = 0;
+	s_interSolverData.max_iter_ = 0;
 
 	s_interSolverData.solver_model_file_d_.clear();
 	s_interSolverData.solver_model_file_d_ = psConfigArgs->solver_d_model_;
