@@ -39,6 +39,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <cublas_v2.h>
 
 #include <caffe/caffe.hpp>
 
@@ -181,13 +182,26 @@ static void* d_thread_fun(void* interSolverData)
 
 	float* train_imgs = nullptr;
 	unsigned int count_train = 0;
-	get_data_from_faces(ps_interSolverData->faces_data,
-			&train_imgs, count_train);
+	//get_data_from_faces(ps_interSolverData->faces_data,
+	//		&train_imgs, count_train);
 
+	train_imgs = ps_interSolverData->train_imgs_;
+	count_train = ps_interSolverData->count_train_;
+
+	float* gpu_train_imgs = ps_interSolverData->gpu_train_imgs_;
 	//--------------------------------------------------------------------------
 
 #if defined(RUN_GPU)
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+
+	cublasHandle_t cublasHandle = caffe::Caffe::cublas_handle();
+	std::cout << "Cublas handle: " << &cublasHandle << std::endl;
+
+	cublasStatus_t ret;
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+	cublasSetStream(cublasHandle, stream);
+
 #else
 	caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif
@@ -252,14 +266,17 @@ static void* d_thread_fun(void* interSolverData)
 			// Train D with real
 			net_d->add_before_forward(clampFunctor);
 
-			float* data_d = input->mutable_cpu_data();
-			memcpy(data_d, train_imgs + (data_index * batch_size * 3 * 64 * 64),
-					batch_size * 3 * 64 * 64 * sizeof(float));
+			//float* data_d = input->mutable_cpu_data();
+			//memcpy(data_d, train_imgs + (data_index * batch_size * 3 * 64 * 64),
+			//		batch_size * 3 * 64 * 64 * sizeof(float));
 
-			cudaMemcpy(input_label->mutable_gpu_data(),
-						ps_interSolverData->gpu_ones_,
-						ps_interSolverData->batch_size_ * sizeof(float),
-						cudaMemcpyDeviceToDevice);
+			input->set_gpu_data(gpu_train_imgs + (data_index * batch_size * 3 * 64 * 64));
+
+
+//			cudaMemcpy(input_label->mutable_gpu_data(),
+//						ps_interSolverData->gpu_ones_, batch_size * sizeof(float),
+//						cudaMemcpyDeviceToDevice);
+			input_label->set_gpu_data(ps_interSolverData->gpu_ones_);
 
 			float errorD_real = net_d->ForwardBackward();
 
@@ -270,21 +287,27 @@ static void* d_thread_fun(void* interSolverData)
 			recalculateZVector(ps_interSolverData->z_data_,
 								batch_size, z_vector_size);
 
-			float* data_g = input_g->mutable_cpu_data();
-			memcpy(data_g, ps_interSolverData->z_data_,
-					batch_size * z_vector_size * sizeof(float));
+//			float* data_g = input_g->mutable_cpu_data();
+//			memcpy(data_g, ps_interSolverData->z_data_,
+//					batch_size * z_vector_size * sizeof(float));
+			cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
+					batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
+
 			ps_interSolverData->net_g_->Forward();
 			auto blob_output_g =
 					ps_interSolverData->net_g_->blob_by_name("gconv5");
 
-			cudaMemcpy(input->mutable_gpu_data(),
-				blob_output_g->gpu_data(),
-				batch_size * 3 * 64 * 64 * sizeof(float),
-				cudaMemcpyDeviceToDevice);
+//			cudaMemcpy(input->mutable_gpu_data(),
+//				blob_output_g->gpu_data(),
+//				batch_size * 3 * 64 * 64 * sizeof(float),
+//				cudaMemcpyDeviceToDevice);
 
-			cudaMemcpy(input_label->mutable_gpu_data(),
-					ps_interSolverData->gpu_zeros_, batch_size * sizeof(float),
-					cudaMemcpyDeviceToDevice);
+			input->set_gpu_data(blob_output_g->mutable_gpu_data());
+
+//			cudaMemcpy(input_label->mutable_gpu_data(),
+//					ps_interSolverData->gpu_zeros_, batch_size * sizeof(float),
+//					cudaMemcpyDeviceToDevice);
+			input_label->set_gpu_data(ps_interSolverData->gpu_zeros_);
 
 			solver->StepOne_ForBackAndUpdate();
 
@@ -331,13 +354,25 @@ static void* g_thread_fun(void* interSolverData)
 
 	float* train_imgs = nullptr;
 	unsigned int count_train = 0;
-	get_data_from_faces(ps_interSolverData->faces_data,
-			&train_imgs, count_train);
+	//get_data_from_faces(ps_interSolverData->faces_data,
+	//		&train_imgs, count_train);
+
+	train_imgs = ps_interSolverData->train_imgs_;
+	count_train = ps_interSolverData->count_train_;
 
 	//--------------------------------------------------------------------------
 
 #if defined(RUN_GPU)
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+
+	cublasHandle_t cublasHandle = caffe::Caffe::cublas_handle();
+	std::cout << "Cublas handle: " << &cublasHandle << std::endl;
+
+	cublasStatus_t ret;
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+	cublasSetStream(cublasHandle, stream);
+
 #else
 	caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif
@@ -382,8 +417,11 @@ static void* g_thread_fun(void* interSolverData)
 
 		recalculateZVector(ps_interSolverData->z_data_, batch_size, z_vector_size);
 
-		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_,
-				batch_size * z_vector_size * sizeof(float));
+//		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_,
+//				batch_size * z_vector_size * sizeof(float));
+		cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
+				batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
+
 		net_g->Forward();
 
 		//----------------------------------------------------------------------
@@ -394,10 +432,11 @@ static void* g_thread_fun(void* interSolverData)
 				batch_size * 3 * 64 * 64 * sizeof(float),
 				cudaMemcpyDeviceToDevice);
 
-		cudaMemcpy(input_label_d->mutable_gpu_data(),
-					ps_interSolverData->gpu_ones_,
-					batch_size * sizeof(float),
-					cudaMemcpyDeviceToDevice);
+//		cudaMemcpy(input_label_d->mutable_gpu_data(),
+//					ps_interSolverData->gpu_ones_,
+//					batch_size * sizeof(float),
+//					cudaMemcpyDeviceToDevice);
+		input_label_d->set_gpu_data(ps_interSolverData->gpu_ones_);
 
 		float loss_G = ps_interSolverData->net_d_->ForwardBackward();
 
@@ -460,10 +499,18 @@ static void generate_cuda_data(S_InterSolverData* ps_interSolverData)
 			ps_interSolverData->batch_size_ * sizeof(float)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_zeros_),
 			ps_interSolverData->batch_size_ * sizeof(float)));
+
+	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_train_imgs_),
+			ps_interSolverData->count_train_* 3 * 64 * 64 * sizeof(float)));
+
 	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_ones_, ones,
 			ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_zeros_, zeros,
 			ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyHostToDevice));
+
+	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_train_imgs_,
+			ps_interSolverData->train_imgs_,
+			ps_interSolverData->count_train_* 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
 
 	delete[] ones;
 	delete[] zeros;
@@ -487,8 +534,11 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.z_vector_size_ = psConfigArgs->z_vector_size_;
 	s_interSolverData.batch_size_ = psConfigArgs->batch_size_;
 
-	s_interSolverData.z_data_ = new float [s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_];
+	//s_interSolverData.z_data_ = new float [s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_];
 	s_interSolverData.z_fix_data_ = new float [s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_];
+	cudaMallocHost((void**)&(s_interSolverData.z_data_), s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_ * sizeof(float));
+//	cudaMallocHost((void**)&(s_interSolverData.z_fix_data_), s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_ * sizeof(float));
+
 	s_interSolverData.d_iters_by_g_iter_ = psConfigArgs->d_iters_by_g_iter_;
 	s_interSolverData.main_iters_ = psConfigArgs->main_iters_;
 
@@ -510,6 +560,8 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.gpu_ones_ = nullptr;
 	s_interSolverData.gpu_zeros_ = nullptr;
 
+	get_data_from_faces(s_interSolverData.faces_data,
+			&(s_interSolverData.train_imgs_), s_interSolverData.count_train_);
 	generate_cuda_data(&s_interSolverData);
 	//--------------------------------------------------------------------------
 
@@ -536,14 +588,20 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	pthread_join(thread_d, nullptr);
 	pthread_join(thread_g, nullptr);
 
-	delete[] s_interSolverData.z_data_;
+//	delete[] s_interSolverData.z_data_;
 	delete[] s_interSolverData.z_fix_data_;
+	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_data_));
+//	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_fix_data_));
 
 	s_interSolverData.log_file_->close();
 	delete s_interSolverData.log_file_;
 
 	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_ones_));
 	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_zeros_));
+	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_train_imgs_));
+
+	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_data_));
+	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_fix_data_));
 
   return 0;
 }

@@ -88,6 +88,7 @@ struct S_InterSolverData
 	unsigned int z_vector_size_;
 	float* z_data_;
 	float* z_fix_data_;
+	float* gpu_z_data_;
 	float* gpu_z_fix_data_;
 
 	unsigned int batch_size_;
