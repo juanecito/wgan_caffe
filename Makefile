@@ -12,7 +12,7 @@ OBJ_DIR := ./obj
 
 all: $(BIN_DIR)/wgan_debug $(BIN_DIR)/wgan_release $(BIN_DIR)/img_viewer $(BIN_DIR)/img_viewer_sequence
 
-CXX_FLAGS_DEBUG := -g3 -O0
+CXX_FLAGS_DEBUG := -g3 -O0 -pg
 
 CXX_FLAGS_RELEASE := -O3
 
