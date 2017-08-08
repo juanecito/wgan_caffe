@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 
 	if (configArgs.run_cifar10_training_ || configArgs.test_cifar10_)
 	{
-		//iRC |= train_test(cifar10_data, &configArgs);
+//		iRC |= train_test(cifar10_data, &configArgs);
 	}
 
 	return iRC;

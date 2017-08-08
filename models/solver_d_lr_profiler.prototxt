@@ -10,7 +10,7 @@ lr_policy: "fixed"
 gamma: 0.5
 stepsize: 500000
 display: 0
-max_iter: 1
+max_iter: 250
 snapshot: 3250
 snapshot_prefix: "wgan_d"
 solver_mode: GPU
