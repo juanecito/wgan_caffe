@@ -300,8 +300,8 @@ int main(int argc, char **argv)
 	std::cout << "d_iters_by_g_iter: " << configArgs.d_iters_by_g_iter_ << std::endl;
 	std::cout << "main_iters: " << configArgs.main_iters_ << std::endl;
 
-	CCifar10* cifar10_data = get_cifar10_data(configArgs.data_source_folder_path_);
-	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
+//	CCifar10* cifar10_data = get_cifar10_data(configArgs.data_source_folder_path_);
+//	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
 
 	//CLFWFaceDatabase* faces_data = get_faces_data(configArgs.data_source_folder_path_);
 	CLFWFaceDatabase* faces_data = get_faces_data("./bin/data/lfw_funneled");
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 
 	if (configArgs.run_cifar10_training_ || configArgs.test_cifar10_)
 	{
-		iRC |= train_test(cifar10_data, &configArgs);
+//		iRC |= train_test(cifar10_data, &configArgs);
 	}
 
 	return iRC;

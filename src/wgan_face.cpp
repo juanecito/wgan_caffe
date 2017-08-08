@@ -534,10 +534,9 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.z_vector_size_ = psConfigArgs->z_vector_size_;
 	s_interSolverData.batch_size_ = psConfigArgs->batch_size_;
 
-	//s_interSolverData.z_data_ = new float [s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_];
 	s_interSolverData.z_fix_data_ = new float [s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_];
 	cudaMallocHost((void**)&(s_interSolverData.z_data_), s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_ * sizeof(float));
-//	cudaMallocHost((void**)&(s_interSolverData.z_fix_data_), s_interSolverData.batch_size_ * s_interSolverData.z_vector_size_ * sizeof(float));
+	s_interSolverData.gpu_z_data_ = nullptr;
 
 	s_interSolverData.d_iters_by_g_iter_ = psConfigArgs->d_iters_by_g_iter_;
 	s_interSolverData.main_iters_ = psConfigArgs->main_iters_;
@@ -588,10 +587,8 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	pthread_join(thread_d, nullptr);
 	pthread_join(thread_g, nullptr);
 
-//	delete[] s_interSolverData.z_data_;
 	delete[] s_interSolverData.z_fix_data_;
 	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_data_));
-//	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_fix_data_));
 
 	s_interSolverData.log_file_->close();
 	delete s_interSolverData.log_file_;
@@ -600,8 +597,7 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_zeros_));
 	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_train_imgs_));
 
-	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_data_));
-	CUDA_CHECK_RETURN(cudaFreeHost(s_interSolverData.z_fix_data_));
+	CUDA_CHECK_RETURN(cudaFree(s_interSolverData.gpu_z_fix_data_));
 
   return 0;
 }

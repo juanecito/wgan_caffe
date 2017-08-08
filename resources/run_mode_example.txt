@@ -61,3 +61,11 @@ z_vector_bin_file: ./z_vector.bin
 z_vector_size: 100
 d_iters_by_g_iter: 5
 main_iters: 780
+
+
+
+
+
+
+
+valgrind --tool=callgrind ./bin/wgan_profile --run-wgan --log ./wgan.log --batch-size 64 --d-iters-by-g-iter 5 --main-iter 1 --z-vector-bin-file ./z_vector.bin --z-vector-size 100 --solver-d-model ./models/solver_d_lr_profiler.prototxt --solver-g-model ./models/solver_g_lr_profiler.prototxt
