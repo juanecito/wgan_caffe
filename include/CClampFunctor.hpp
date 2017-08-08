@@ -26,6 +26,7 @@
 #define INCLUDE_CCLAMPFUNCTOR_HPP_
 
 #include "CClampFunctor.h"
+#include "CTimer.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -45,10 +46,16 @@ class CClampFunctor: public caffe::Net<T>::Callback
 
 		virtual void run(int layer)
 		{
+			CTimer timer;
+			timer.tic();
 			//std::cout << "layer: " << layer << std::endl;
 			std::vector<caffe::Blob<T>*>& learnable_params =
 				const_cast<std::vector<caffe::Blob<T>*>& >(net_.learnable_params());
 			this->clamp(learnable_params.at(layer));
+
+			timer.tac();
+			double time = timer.Elasped();
+			std::cout << "CClampFunctor time: " << time << " " << layer << std::endl;
 		}
 
 		virtual ~CClampFunctor(){}
