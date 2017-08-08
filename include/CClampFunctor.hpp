@@ -25,6 +25,7 @@
 #ifndef INCLUDE_CCLAMPFUNCTOR_HPP_
 #define INCLUDE_CCLAMPFUNCTOR_HPP_
 
+#include "CClampFunctor.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T>
@@ -33,7 +34,12 @@ class CClampFunctor: public caffe::Net<T>::Callback
 	public:
 
 		CClampFunctor(caffe::Net<T>& net, T clamp_lower,T clamp_upper):
-			net_(net), clamp_lower_(clamp_lower), clamp_upper_(clamp_upper){}
+			net_(net), clamp_lower_(clamp_lower), clamp_upper_(clamp_upper),
+			stream_(nullptr){}
+
+		CClampFunctor(caffe::Net<T>& net, T clamp_lower,T clamp_upper, cudaStream_t* stream):
+			net_(net), clamp_lower_(clamp_lower), clamp_upper_(clamp_upper),
+			stream_(stream){}
 
 	protected:
 
@@ -53,20 +59,33 @@ class CClampFunctor: public caffe::Net<T>::Callback
 
 		void clamp(caffe::Blob<T>* blob)
 		{
-			T* data = blob->mutable_cpu_data();
-			unsigned int count = blob->count();
+			bool cpu = false;
 
-			for (unsigned int uiI = 0; uiI < count; uiI++)
+			if (cpu)
 			{
-				if (data[uiI] < clamp_lower_){ data[uiI] = clamp_lower_; }
-				else if (data[uiI] > clamp_upper_){ data[uiI] = clamp_upper_; }
+				T* data = blob->mutable_cpu_data();
+				unsigned int count = blob->count();
+
+				for (unsigned int uiI = 0; uiI < count; uiI++)
+				{
+					if (data[uiI] < clamp_lower_){ data[uiI] = clamp_lower_; }
+					else if (data[uiI] > clamp_upper_){ data[uiI] = clamp_upper_; }
+				}
+			}
+			else
+			{
+				::clamp<T>(blob->count(), clamp_lower_, clamp_upper_, blob->mutable_gpu_data(), stream_);
 			}
 		}
+
+
+		//cudaStreamSynchronize(*stream);
 
 		caffe::Net<T>& net_;
 
 		T clamp_lower_;
 		T clamp_upper_;
+		cudaStream_t* stream_;
 };
 
 
