@@ -449,8 +449,8 @@ static void* g_thread_fun(void* interSolverData)
 
 //		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_,
 //				batch_size * z_vector_size * sizeof(float));
-		cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
-				batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
+//		cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
+//				batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
 
 		net_g->Forward();
 
@@ -485,7 +485,7 @@ static void* g_thread_fun(void* interSolverData)
 		std::cout << "loss_G:" << loss_G << std::endl;
 		log_file << "loss_G:" << loss_G << std::endl;
 
-		if (uiI > 0 && uiI % 10 == 0)
+		if (uiI > 0 && uiI % 100 == 0)
 		{
 //			memcpy(input_g->mutable_cpu_data(),
 //					ps_interSolverData->z_fix_data_,
