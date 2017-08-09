@@ -61,7 +61,7 @@
 #include "CCustomLossLayerBackwardGPU.hpp"
 
 #include "CTimer.hpp"
-
+#include "CCDistrGen.hpp"
 #include "CClampFunctor.hpp"
 
 #include "config_args.hpp"
@@ -246,6 +246,7 @@ static void* d_thread_fun(void* interSolverData)
 	unsigned int d_iter_by_g_real = 0;
 
 	CTimer timer;
+	CCDistrGen<float> distgen(batch_size * z_vector_size);
 
 	for (unsigned int uiI = ps_interSolverData->current_iter_;
 			uiI < ps_interSolverData->max_iter_; uiI++)
@@ -258,7 +259,7 @@ static void* d_thread_fun(void* interSolverData)
 
 		for (unsigned int uiJ = 0; uiJ < d_iter_by_g_real; uiJ++)
 		{
-			timer.tic();
+//			timer.tic();
 			if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
 			//std::cout << "count train: " << count_train << std::endl;
 			//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
@@ -280,27 +281,30 @@ static void* d_thread_fun(void* interSolverData)
 			input_label->set_gpu_data(ps_interSolverData->gpu_ones_);
 
 			float errorD_real = net_d->ForwardBackward();
-			timer.tac();
-			double time1 = timer.Elasped();
-			std::cout << "Time 1: " << time1 << std::endl;
+//			timer.tac();
+//			double time1 = timer.Elasped();
+//			std::cout << "Time 1: " << time1 << std::endl;
 			//------------------------------------------------------------------
 			// Train D with fake
-			timer.tic();
+//			timer.tic();
 			(const_cast<std::vector<caffe::Net<float>::Callback*>&>(net_d->before_forward())).clear();
 
-			recalculateZVector(ps_interSolverData->z_data_,
-								batch_size, z_vector_size);
+
+			distgen.gen_normal_dist(input_g->mutable_gpu_data());
+
+//			recalculateZVector(ps_interSolverData->z_data_,
+//								batch_size, z_vector_size);
 
 //			float* data_g = input_g->mutable_cpu_data();
 //			memcpy(data_g, ps_interSolverData->z_data_,
 //					batch_size * z_vector_size * sizeof(float));
-			cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
-					batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
+//			cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
+//					batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
 
-			timer.tac();
-			double time2 = timer.Elasped();
-			std::cout << "Time 2: " << time2 << std::endl;
-			timer.tic();
+//			timer.tac();
+//			double time2 = timer.Elasped();
+//			std::cout << "Time 2: " << time2 << std::endl;
+//			timer.tic();
 
 			ps_interSolverData->net_g_->Forward();
 			auto blob_output_g =
@@ -318,20 +322,20 @@ static void* d_thread_fun(void* interSolverData)
 //					cudaMemcpyDeviceToDevice);
 			input_label->set_gpu_data(ps_interSolverData->gpu_zeros_);
 
-			timer.tac();
-			double time3 = timer.Elasped();
-			std::cout << "Time 3: " << time3 << std::endl;
-			timer.tic();
+//			timer.tac();
+//			double time3 = timer.Elasped();
+//			std::cout << "Time 3: " << time3 << std::endl;
+//			timer.tic();
 
 			solver->StepOne_ForBackAndUpdate();
 
-			timer.tac();
-			double time4 = timer.Elasped();
-			std::cout << "Time 4: " << time4 << std::endl;
+//			timer.tac();
+//			double time4 = timer.Elasped();
+//			std::cout << "Time 4: " << time4 << std::endl;
 
 			if (uiJ == (d_iter_by_g_real - 1))
 			{
-				timer.tic();
+//				timer.tic();
 				float errorD_fake = 0.0;
 				errorD_fake = net_d->blob_by_name("loss")->cpu_data()[0];
 
@@ -347,9 +351,9 @@ static void* d_thread_fun(void* interSolverData)
 				log_file << "errorD_fake:" << errorD_fake << ";";
 				log_file << "errorD:" << errorD << ";";
 				log_file.flush();
-				timer.tac();
-				double time_write_log = timer.Elasped();
-				std::cout << "Time write log: " << time_write_log << std::endl;
+//				timer.tac();
+//				double time_write_log = timer.Elasped();
+//				std::cout << "Time write log: " << time_write_log << std::endl;
 
 			}
 			net_d->ClearParamDiffs();
@@ -420,9 +424,10 @@ static void* g_thread_fun(void* interSolverData)
 	caffe::Net<float>* net_g = ps_interSolverData->net_g_ = solver->net().get();
 	pthread_barrier_wait(&solvers_barrier);
 	//--------------------------------------------------------------------------
-
 	unsigned int batch_size = ps_interSolverData->batch_size_;
 	unsigned int z_vector_size = ps_interSolverData->z_vector_size_;
+
+	CCDistrGen<float> distgen(batch_size * z_vector_size);
 
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 	input_g->Reshape({(int)batch_size, (int)z_vector_size, 1, 1});
@@ -438,7 +443,9 @@ static void* g_thread_fun(void* interSolverData)
 	{
 		takeToken(OWNER_G);
 
-		recalculateZVector(ps_interSolverData->z_data_, batch_size, z_vector_size);
+		// recalculateZVector(ps_interSolverData->z_data_, batch_size, z_vector_size);
+		distgen.gen_normal_dist(input_g->mutable_gpu_data());
+
 
 //		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_,
 //				batch_size * z_vector_size * sizeof(float));
