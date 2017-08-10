@@ -259,7 +259,7 @@ static void* d_thread_fun(void* interSolverData)
 
 		for (unsigned int uiJ = 0; uiJ < d_iter_by_g_real; uiJ++)
 		{
-//			timer.tic();
+			timer.tic();
 			if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
 			//std::cout << "count train: " << count_train << std::endl;
 			//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
@@ -281,12 +281,12 @@ static void* d_thread_fun(void* interSolverData)
 			input_label->set_gpu_data(ps_interSolverData->gpu_ones_);
 
 			float errorD_real = net_d->ForwardBackward();
-//			timer.tac();
-//			double time1 = timer.Elasped();
-//			std::cout << "Time 1: " << time1 << std::endl;
+			timer.tac();
+			double time1 = timer.Elasped();
+			std::cout << "Time 1: " << time1 << std::endl;
 			//------------------------------------------------------------------
 			// Train D with fake
-//			timer.tic();
+			timer.tic();
 			(const_cast<std::vector<caffe::Net<float>::Callback*>&>(net_d->before_forward())).clear();
 
 
@@ -301,10 +301,10 @@ static void* d_thread_fun(void* interSolverData)
 //			cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
 //					batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
 
-//			timer.tac();
-//			double time2 = timer.Elasped();
-//			std::cout << "Time 2: " << time2 << std::endl;
-//			timer.tic();
+			timer.tac();
+			double time2 = timer.Elasped();
+			std::cout << "Time 2: " << time2 << std::endl;
+			timer.tic();
 
 			ps_interSolverData->net_g_->Forward();
 			auto blob_output_g =
@@ -315,23 +315,24 @@ static void* d_thread_fun(void* interSolverData)
 //				batch_size * 3 * 64 * 64 * sizeof(float),
 //				cudaMemcpyDeviceToDevice);
 
-			input->set_gpu_data(blob_output_g->mutable_gpu_data());
+			//input->set_gpu_data(blob_output_g->mutable_gpu_data());
+			input->set_gpu_data(const_cast<float*>(blob_output_g->gpu_data()));
 
 //			cudaMemcpy(input_label->mutable_gpu_data(),
 //					ps_interSolverData->gpu_zeros_, batch_size * sizeof(float),
 //					cudaMemcpyDeviceToDevice);
 			input_label->set_gpu_data(ps_interSolverData->gpu_zeros_);
 
-//			timer.tac();
-//			double time3 = timer.Elasped();
-//			std::cout << "Time 3: " << time3 << std::endl;
-//			timer.tic();
+			timer.tac();
+			double time3 = timer.Elasped();
+			std::cout << "Time 3: " << time3 << std::endl;
+			timer.tic();
 
 			solver->StepOne_ForBackAndUpdate();
 
-//			timer.tac();
-//			double time4 = timer.Elasped();
-//			std::cout << "Time 4: " << time4 << std::endl;
+			timer.tac();
+			double time4 = timer.Elasped();
+			std::cout << "Time 4: " << time4 << std::endl;
 
 			if (uiJ == (d_iter_by_g_real - 1))
 			{
@@ -475,10 +476,10 @@ static void* g_thread_fun(void* interSolverData)
 				batch_size * 3 * 64 * 64 * sizeof(float),
 				cudaMemcpyDeviceToDevice);
 
-		cudaMemcpy(blob_output_g->mutable_gpu_data(),
-				net_d_blob_data->gpu_data(),
-				batch_size * 3 * 64 * 64 * sizeof(float),
-				cudaMemcpyDeviceToDevice);
+//		cudaMemcpy(blob_output_g->mutable_gpu_data(),
+//				net_d_blob_data->gpu_data(),
+//				batch_size * 3 * 64 * 64 * sizeof(float),
+//				cudaMemcpyDeviceToDevice);
 
 		solver->StepOne_BackAndUpdate();
 

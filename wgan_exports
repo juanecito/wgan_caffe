@@ -1,4 +1,4 @@
 
 
-export LD_LIBRARY_PATH=../my_caffe/build_d/lib:../my_caffe/build_r/lib
+export LD_LIBRARY_PATH=../my_caffe/build_d/lib:../my_caffe/build_r/lib:/usr/local/cuda/lib64
 

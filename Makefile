@@ -22,10 +22,14 @@ NVCC_FLAGS_RELEASE := -O3 --std=c++11 --compiler-options -fPIC $(ARCH_GPU)
 
 INC := $(INC_DIR)
 
-LIBS_RELEASE := -L ../my_caffe/build_r/lib -Wl,-Bdynamic -lcaffe -lcuda -lcublas \
+#LIBS_RELEASE := -L ../my_caffe/build_r/lib -Wl,-Bdynamic -lcaffe -lcuda -lcublas \
 				-lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf \
 				-lboost_system -lopencv_imgproc -lpthread
-				
+
+LIBS_RELEASE := -L ../my_caffe/build_r_cudnn/lib -L /usr/local/cuda/lib64 -Wl,-Bdynamic -lcaffe -lcudnn -lcuda -lcublas \
+				-lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf \
+				-lboost_system -lopencv_imgproc -lpthread
+
 LIBS_PROFILE := -L ../my_caffe/build_d/lib -Wl,-Bdynamic -lcaffe-d -lcuda -lcublas \
 				-lcudart -lopencv_core -lopencv_highgui -lglog -lprotobuf \
 				-lboost_system -lopencv_imgproc -lpthread
