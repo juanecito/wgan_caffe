@@ -96,10 +96,8 @@ static void takeToken(int owner)
 	while (owner != current_owner)
 	{
 		pthread_cond_wait(&solvers_cond, &solvers_mutex);
-		//printf("watch_count(): thread %d Condition signal received.\n", owner);
 	}
 
-	//printf("take token: thread %d.\n", owner);
 	pthread_mutex_unlock(&solvers_mutex);
 
 }
@@ -117,9 +115,7 @@ static void releaseToken(int owner)
 	{
 		current_owner += 1; current_owner %= 2;
 		pthread_cond_signal(&solvers_cond);
-		//printf("start: thread %d.\n", owner);
 	}
-	//printf("release token thread %d  unlocking mutex\n", owner);
 	pthread_mutex_unlock(&solvers_mutex);
 }
 
@@ -182,8 +178,6 @@ static void* d_thread_fun(void* interSolverData)
 
 	float* train_imgs = nullptr;
 	unsigned int count_train = 0;
-	//get_data_from_faces(ps_interSolverData->faces_data,
-	//		&train_imgs, count_train);
 
 	train_imgs = ps_interSolverData->train_imgs_;
 	count_train = ps_interSolverData->count_train_;
@@ -259,84 +253,51 @@ static void* d_thread_fun(void* interSolverData)
 
 		for (unsigned int uiJ = 0; uiJ < d_iter_by_g_real; uiJ++)
 		{
-			timer.tic();
+//			timer.tic();
 			if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
-			//std::cout << "count train: " << count_train << std::endl;
-			//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
 
 			//------------------------------------------------------------------
 			// Train D with real
 			net_d->add_before_forward(clampFunctor);
-
-			//float* data_d = input->mutable_cpu_data();
-			//memcpy(data_d, train_imgs + (data_index * batch_size * 3 * 64 * 64),
-			//		batch_size * 3 * 64 * 64 * sizeof(float));
-
 			input->set_gpu_data(gpu_train_imgs + (data_index * batch_size * 3 * 64 * 64));
-
-
-//			cudaMemcpy(input_label->mutable_gpu_data(),
-//						ps_interSolverData->gpu_ones_, batch_size * sizeof(float),
-//						cudaMemcpyDeviceToDevice);
 			input_label->set_gpu_data(ps_interSolverData->gpu_ones_);
 
 			float errorD_real = net_d->ForwardBackward();
-			timer.tac();
-			double time1 = timer.Elasped();
-			std::cout << "Time 1: " << time1 << std::endl;
+//			timer.tac();
+//			double time1 = timer.Elasped();
+//			std::cout << "Time 1: " << time1 << std::endl;
 			//------------------------------------------------------------------
 			// Train D with fake
-			timer.tic();
+//			timer.tic();
 			(const_cast<std::vector<caffe::Net<float>::Callback*>&>(net_d->before_forward())).clear();
-
 
 			distgen.gen_normal_dist(input_g->mutable_gpu_data());
 
-//			recalculateZVector(ps_interSolverData->z_data_,
-//								batch_size, z_vector_size);
-
-//			float* data_g = input_g->mutable_cpu_data();
-//			memcpy(data_g, ps_interSolverData->z_data_,
-//					batch_size * z_vector_size * sizeof(float));
-//			cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
-//					batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
-
-			timer.tac();
-			double time2 = timer.Elasped();
-			std::cout << "Time 2: " << time2 << std::endl;
-			timer.tic();
+//			timer.tac();
+//			double time2 = timer.Elasped();
+//			std::cout << "Time 2: " << time2 << std::endl;
+//			timer.tic();
 
 			ps_interSolverData->net_g_->Forward();
 			auto blob_output_g =
 					ps_interSolverData->net_g_->blob_by_name("gconv5");
 
-//			cudaMemcpy(input->mutable_gpu_data(),
-//				blob_output_g->gpu_data(),
-//				batch_size * 3 * 64 * 64 * sizeof(float),
-//				cudaMemcpyDeviceToDevice);
-
-			//input->set_gpu_data(blob_output_g->mutable_gpu_data());
 			input->set_gpu_data(const_cast<float*>(blob_output_g->gpu_data()));
-
-//			cudaMemcpy(input_label->mutable_gpu_data(),
-//					ps_interSolverData->gpu_zeros_, batch_size * sizeof(float),
-//					cudaMemcpyDeviceToDevice);
 			input_label->set_gpu_data(ps_interSolverData->gpu_zeros_);
 
-			timer.tac();
-			double time3 = timer.Elasped();
-			std::cout << "Time 3: " << time3 << std::endl;
-			timer.tic();
+//			timer.tac();
+//			double time3 = timer.Elasped();
+//			std::cout << "Time 3: " << time3 << std::endl;
+//			timer.tic();
 
 			solver->StepOne_ForBackAndUpdate();
 
-			timer.tac();
-			double time4 = timer.Elasped();
-			std::cout << "Time 4: " << time4 << std::endl;
+//			timer.tac();
+//			double time4 = timer.Elasped();
+//			std::cout << "Time 4: " << time4 << std::endl;
 
 			if (uiJ == (d_iter_by_g_real - 1))
 			{
-//				timer.tic();
 				float errorD_fake = 0.0;
 				errorD_fake = net_d->blob_by_name("loss")->cpu_data()[0];
 
@@ -352,10 +313,6 @@ static void* d_thread_fun(void* interSolverData)
 				log_file << "errorD_fake:" << errorD_fake << ";";
 				log_file << "errorD:" << errorD << ";";
 				log_file.flush();
-//				timer.tac();
-//				double time_write_log = timer.Elasped();
-//				std::cout << "Time write log: " << time_write_log << std::endl;
-
 			}
 			net_d->ClearParamDiffs();
 			data_index++;
@@ -382,8 +339,6 @@ static void* g_thread_fun(void* interSolverData)
 
 	float* train_imgs = nullptr;
 	unsigned int count_train = 0;
-	//get_data_from_faces(ps_interSolverData->faces_data,
-	//		&train_imgs, count_train);
 
 	train_imgs = ps_interSolverData->train_imgs_;
 	count_train = ps_interSolverData->count_train_;
@@ -435,10 +390,7 @@ static void* g_thread_fun(void* interSolverData)
 
 	auto blob_output_g = net_g->blob_by_name("gconv5");
 	auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
-	//auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
-
 	auto input_label_d = ps_interSolverData->net_d_->blob_by_name("label");
-
 
 	for (unsigned int uiI = current_iter_g; uiI < max_iter_g; uiI++)
 	{
@@ -446,12 +398,6 @@ static void* g_thread_fun(void* interSolverData)
 
 		// recalculateZVector(ps_interSolverData->z_data_, batch_size, z_vector_size);
 		distgen.gen_normal_dist(input_g->mutable_gpu_data());
-
-
-//		memcpy(input_g->mutable_cpu_data(), ps_interSolverData->z_data_,
-//				batch_size * z_vector_size * sizeof(float));
-//		cudaMemcpy(input_g->mutable_gpu_data(), ps_interSolverData->z_data_,
-//				batch_size * z_vector_size * sizeof(float), cudaMemcpyHostToDevice);
 
 		net_g->Forward();
 
@@ -463,10 +409,6 @@ static void* g_thread_fun(void* interSolverData)
 				batch_size * 3 * 64 * 64 * sizeof(float),
 				cudaMemcpyDeviceToDevice);
 
-//		cudaMemcpy(input_label_d->mutable_gpu_data(),
-//					ps_interSolverData->gpu_ones_,
-//					batch_size * sizeof(float),
-//					cudaMemcpyDeviceToDevice);
 		input_label_d->set_gpu_data(ps_interSolverData->gpu_ones_);
 
 		float loss_G = ps_interSolverData->net_d_->ForwardBackward();
@@ -476,11 +418,6 @@ static void* g_thread_fun(void* interSolverData)
 				batch_size * 3 * 64 * 64 * sizeof(float),
 				cudaMemcpyDeviceToDevice);
 
-//		cudaMemcpy(blob_output_g->mutable_gpu_data(),
-//				net_d_blob_data->gpu_data(),
-//				batch_size * 3 * 64 * 64 * sizeof(float),
-//				cudaMemcpyDeviceToDevice);
-
 		solver->StepOne_BackAndUpdate();
 
 		std::cout << "loss_G:" << loss_G << std::endl;
@@ -488,10 +425,6 @@ static void* g_thread_fun(void* interSolverData)
 
 		if (uiI > 0 && uiI % 100 == 0)
 		{
-//			memcpy(input_g->mutable_cpu_data(),
-//					ps_interSolverData->z_fix_data_,
-//					batch_size * z_vector_size * sizeof(float));
-
 			cudaMemcpy(input_g->mutable_gpu_data(),
 								ps_interSolverData->gpu_z_fix_data_,
 								batch_size * z_vector_size * sizeof(float),
@@ -499,8 +432,7 @@ static void* g_thread_fun(void* interSolverData)
 
 			net_g->Forward();
 			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
-			//show_grid_img_CV_32FC3(64, 64, img_g_data, 3, 8, 8);
-			std::string file_name =
+			std::string file_name = ps_interSolverData->output_folder_path_ + std::string("/") +
 				std::string("wgan_grid") + std::to_string(uiI) + std::string(".yml");
 			write_grid_img_CV_32FC3(file_name, 64, 64, img_g_data, 3, 8, 8);
 		}
@@ -585,8 +517,9 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.solver_state_file_g_.clear();
 	s_interSolverData.solver_state_file_g_ = psConfigArgs->solver_g_state_;
 
-	s_interSolverData.log_file_ = new std::fstream(psConfigArgs->logarg_, std::ios_base::app);
-
+	std::string log_file_path = psConfigArgs->output_folder_path_ + std::string("/") + psConfigArgs->logarg_;
+	s_interSolverData.log_file_ = new std::fstream(log_file_path, std::ios_base::app);
+	s_interSolverData.output_folder_path_ = psConfigArgs->output_folder_path_;
 	s_interSolverData.gpu_ones_ = nullptr;
 	s_interSolverData.gpu_zeros_ = nullptr;
 
@@ -603,13 +536,15 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 
 	int iRC = 0;
 
-	if ((iRC = pthread_create(&thread_d, nullptr, d_thread_fun, &s_interSolverData)) != 0)
+	if ((iRC = pthread_create(&thread_d, nullptr,
+									d_thread_fun, &s_interSolverData)) != 0)
 	{
 		std::cerr << "Error creating thread d " << std::endl;
 		return 1;
 	}
 
-	if ((iRC = pthread_create(&thread_g, nullptr, g_thread_fun, &s_interSolverData)) != 0)
+	if ((iRC = pthread_create(&thread_g, nullptr,
+									g_thread_fun, &s_interSolverData)) != 0)
 	{
 		std::cerr << "Error creating thread g " << std::endl;
 		return 1;
@@ -633,19 +568,17 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
   return 0;
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 /**
  * Check the return value of the CUDA runtime API call and exit
  * the application if the call has failed.
  */
-static void CheckCudaErrorAux (const char *file, unsigned line, const char *statement, cudaError_t err)
+static void CheckCudaErrorAux (const char *file, unsigned line,
+									const char *statement, cudaError_t err)
 {
-	if (err == cudaSuccess)
-		return;
-	std::cerr << statement<<" returned " << cudaGetErrorString(err) << "("<<err<< ") at "<<file<<":"<<line << std::endl;
+	if (err == cudaSuccess) return;
+	std::cerr << statement<<" returned " << cudaGetErrorString(err)
+			<< "("<<err<< ") at "<<file<<":"<<line << std::endl;
 	exit (1);
 }
-
-
-
 

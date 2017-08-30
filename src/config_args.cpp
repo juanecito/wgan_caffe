@@ -6,6 +6,8 @@
  */
 
 #include <getopt.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 #include "config_args.hpp"
 
@@ -27,6 +29,28 @@ bool isInteger(const std::string & s)
    return (*p == '\0');
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool check_folder(const std::string& folder)
+{
+	struct stat st;
+	if (stat(folder.c_str(), &st) != 0)
+	{
+		mode_t mode = 0777;
+		/* Directory does not exist, I'm goint to create it */
+		if (mkdir(folder.c_str(), mode) != 0)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (!S_ISDIR(st.st_mode))
+		{
+			return false;
+		}
+	}
+	return true;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv)
@@ -55,7 +79,11 @@ void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv)
         {"cifar10-train",   no_argument, &(configArgs->run_cifar10_training_), 1},
         {"cifar10-test",   no_argument, &(configArgs->test_cifar10_), 1},
 		{"log",      required_argument, 0, OPT_LOG},
-		{"data-set", required_argument, 0, OPT_DATASET},
+		{"dataset", required_argument, 0, OPT_DATASET},
+
+		{"data-src-path", required_argument, 0, OPT_DATA_SOURCE_FOLDER_PATH},
+		{"output-path", required_argument, 0, OPT_OUTPUT_FOLDER_PATH},
+
 		{"train-file", required_argument, 0, OPT_PRE_TRAIN_FILE},
 		{"solver-d-model", required_argument, 0, OPT_WGAN_D_SOLVER_MODEL_FILE},
 		{"solver-g-model", required_argument, 0, OPT_WGAN_G_SOLVER_MODEL_FILE},
@@ -64,7 +92,6 @@ void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv)
 
 		{"d-iters-by-g-iter", required_argument, 0, OPT_D_ITERS_BY_G_ITER},
 		{"main-iter", required_argument, 0, OPT_MAIN_ITERS},
-
 
 		{"z-vector-bin-file", required_argument, 0, OPT_Z_VECTOR_BIN_FILE},
 		{"z-vector-size", required_argument, 0, OPT_Z_VECTOR_SIZE},
@@ -78,13 +105,14 @@ void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv)
 		switch (c)
 		{
 		case OPT_LOG: configArgs->logarg_ = optarg; break;
-		case OPT_DATASET: configArgs->dataset_ = optarg; break;
+		case OPT_DATASET: configArgs->dataset_ = optarg; break; // LFW_faces, Cifar10,
 		case OPT_PRE_TRAIN_FILE: configArgs->pretrain_file_name_ = optarg; break;
 		case OPT_WGAN_D_SOLVER_MODEL_FILE: configArgs->solver_d_model_ = optarg; break;
 		case OPT_WGAN_G_SOLVER_MODEL_FILE: configArgs->solver_g_model_ = optarg; break;
 		case OPT_WGAN_D_SOLVER_STATE_FILE: configArgs->solver_d_state_ = optarg; break;
 		case OPT_WGAN_G_SOLVER_STATE_FILE: configArgs->solver_g_state_= optarg; break;
 		case OPT_DATA_SOURCE_FOLDER_PATH: configArgs->data_source_folder_path_= optarg; break;
+		case OPT_OUTPUT_FOLDER_PATH: configArgs->output_folder_path_ = optarg; break;
 		case OPT_Z_VECTOR_BIN_FILE: configArgs->z_vector_bin_file_ = optarg; break;
 
 		case OPT_D_ITERS_BY_G_ITER:

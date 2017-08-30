@@ -38,13 +38,14 @@
 enum E_CONFIG_ARGS_OPTS
 {
 	OPT_LOG,
-	OPT_DATASET, // Cifar10, ...
+	OPT_DATASET,
 	OPT_PRE_TRAIN_FILE,
 	OPT_WGAN_D_SOLVER_MODEL_FILE,
 	OPT_WGAN_G_SOLVER_MODEL_FILE,
 	OPT_WGAN_D_SOLVER_STATE_FILE,
 	OPT_WGAN_G_SOLVER_STATE_FILE,
 	OPT_DATA_SOURCE_FOLDER_PATH,
+	OPT_OUTPUT_FOLDER_PATH,
 	OPT_D_ITERS_BY_G_ITER,
 	OPT_MAIN_ITERS,
 	OPT_BATCH_SIZE,
@@ -69,6 +70,7 @@ struct S_ConfigArgs
 
 	std::string dataset_;
 	std::string data_source_folder_path_;
+	std::string output_folder_path_;
 
 	unsigned int d_iters_by_g_iter_;
 	unsigned int main_iters_;
@@ -122,6 +124,8 @@ struct S_InterSolverData
 
 	std::fstream* log_file_;
 
+	std::string output_folder_path_;
+
 	std::string solver_state_file_d_;
 	std::string solver_state_file_g_;
 
@@ -134,6 +138,7 @@ void usage(char *prog);
 
 ////////////////////////////////////////////////////////////////////////////////
 bool isInteger(const std::string & s);
+bool check_folder(const std::string& folder);
 
 ////////////////////////////////////////////////////////////////////////////////
 void parse_arguments(struct S_ConfigArgs *configArgs, int argc, char **argv);

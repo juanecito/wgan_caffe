@@ -245,6 +245,12 @@ CCifar10* get_cifar10_data(const std::string& cifar_path)
 	return cifar10;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/**
+ *
+ * @param path
+ * @return
+ */
 CLFWFaceDatabase* get_faces_data(const std::string& path)
 {
 	CLFWFaceDatabase* faces_data = new CLFWFaceDatabase();
@@ -271,17 +277,14 @@ int main(int argc, char **argv)
 	if (configArgs.z_vector_size_ == 0)configArgs.z_vector_size_ = 100;
 	if (configArgs.d_iters_by_g_iter_ == 0) configArgs.d_iters_by_g_iter_ = 25;
 	if (configArgs.main_iters_ == 0)configArgs.main_iters_ = 100;
-	if (configArgs.solver_d_model_.size() == 0)
+
+	if (configArgs.dataset_.size() == 0)
 	{
-		configArgs.solver_d_model_ = "./models/solver_d_lr_A.prototxt";
+		configArgs.dataset_ = "LFW_faces";
 	}
-	if (configArgs.solver_g_model_.size() == 0)
+	if (configArgs.output_folder_path_.size() == 0)
 	{
-		configArgs.solver_g_model_ = "./models/solver_g_lr_A.prototxt";
-	}
-	if (configArgs.data_source_folder_path_.size() == 0)
-	{
-		configArgs.data_source_folder_path_ = "./bin/cifar-10-batches-bin";
+		configArgs.output_folder_path_ = ".";
 	}
 
 	std::cout << "Arguments: " << std::endl;
@@ -291,7 +294,9 @@ int main(int argc, char **argv)
 	std::cout << "solver_d_state_: " << configArgs.solver_d_state_ << std::endl;
 	std::cout << "solver_g_state_: " << configArgs.solver_g_state_ << std::endl;
 	std::cout << "data_source_folder_path: " << configArgs.data_source_folder_path_ << std::endl;
+	std::cout << "output_folder_path: " << configArgs.output_folder_path_ << std::endl;
 	std::cout << "run wgan: " << configArgs.run_wgan_ << std::endl;
+	std::cout << "dataset: " << configArgs.dataset_ << std::endl;
 	std::cout << "run cifar10 training: " << configArgs.run_cifar10_training_ << std::endl;
 	std::cout << "run cifar10 test: " << configArgs.test_cifar10_ << std::endl;
 	std::cout << "batch size: " << configArgs.batch_size_ << std::endl;
@@ -300,23 +305,42 @@ int main(int argc, char **argv)
 	std::cout << "d_iters_by_g_iter: " << configArgs.d_iters_by_g_iter_ << std::endl;
 	std::cout << "main_iters: " << configArgs.main_iters_ << std::endl;
 
-//	CCifar10* cifar10_data = get_cifar10_data(configArgs.data_source_folder_path_);
-//	std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
+	if (!check_folder(configArgs.output_folder_path_))
+	{
+		std::cerr << "Error output folder path: " << configArgs.output_folder_path_ << std::endl;
+		return 1;
+	}
 
-	//CLFWFaceDatabase* faces_data = get_faces_data(configArgs.data_source_folder_path_);
-	CLFWFaceDatabase* faces_data = get_faces_data("./bin/data/lfw_funneled");
-
+	//--------------------------------------------------------------------------
+	// Call execution
 	int iRC = 0;
 
 	if (configArgs.run_wgan_)
 	{
-		//iRC |= wgan(cifar10_data, &configArgs);
-		iRC |= wgan_faces(faces_data, &configArgs);
+		if (configArgs.dataset_.compare("LFW_faces") == 0)
+		{
+			//CLFWFaceDatabase* faces_data =
+			//			get_faces_data(configArgs.data_source_folder_path_);
+			CLFWFaceDatabase* faces_data =
+						get_faces_data(configArgs.data_source_folder_path_);
+			std::unique_ptr<CLFWFaceDatabase> cifar10_sh(faces_data);
+			iRC |= wgan_faces(faces_data, &configArgs);
+		}
+		else if (configArgs.dataset_.compare("Cifar10") == 0)
+		{
+			CCifar10* cifar10_data =
+						get_cifar10_data(configArgs.data_source_folder_path_);
+			std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
+			iRC |= wgan(cifar10_data, &configArgs);
+		}
 	}
 
 	if (configArgs.run_cifar10_training_ || configArgs.test_cifar10_)
 	{
-//		iRC |= train_test(cifar10_data, &configArgs);
+		CCifar10* cifar10_data =
+						get_cifar10_data(configArgs.data_source_folder_path_);
+		std::unique_ptr<CCifar10> cifar10_sh(cifar10_data);
+		iRC |= train_test(cifar10_data, &configArgs);
 	}
 
 	return iRC;
