@@ -204,6 +204,12 @@ static void* d_thread_fun(void* interSolverData)
 	boost::shared_ptr<caffe::Solver<float> > solver;
 
 	caffe::ReadSolverParamsFromTextFileOrDie(ps_interSolverData->solver_model_file_d_, &solver_param);
+
+	std::string snapshot_file = solver_param.snapshot_prefix();
+	std::string snapshot_path =
+			ps_interSolverData->output_folder_path_ + std::string("/") + snapshot_file;
+	solver_param.set_snapshot_prefix(snapshot_path);
+
 	solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int current_iter_d = 0;
@@ -364,6 +370,12 @@ static void* g_thread_fun(void* interSolverData)
 
 	caffe::SolverParameter solver_param;
 	caffe::ReadSolverParamsFromTextFileOrDie(ps_interSolverData->solver_model_file_g_, &solver_param);
+
+	std::string snapshot_file = solver_param.snapshot_prefix();
+	std::string snapshot_path =
+			ps_interSolverData->output_folder_path_ + std::string("/") + snapshot_file;
+	solver_param.set_snapshot_prefix(snapshot_path);
+
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int current_iter_g = 0;
@@ -517,8 +529,7 @@ int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.solver_state_file_g_.clear();
 	s_interSolverData.solver_state_file_g_ = psConfigArgs->solver_g_state_;
 
-	std::string log_file_path = psConfigArgs->output_folder_path_ + std::string("/") + psConfigArgs->logarg_;
-	s_interSolverData.log_file_ = new std::fstream(log_file_path, std::ios_base::app);
+	s_interSolverData.log_file_ = new std::fstream(psConfigArgs->logarg_, std::ios_base::app);
 	s_interSolverData.output_folder_path_ = psConfigArgs->output_folder_path_;
 	s_interSolverData.gpu_ones_ = nullptr;
 	s_interSolverData.gpu_zeros_ = nullptr;

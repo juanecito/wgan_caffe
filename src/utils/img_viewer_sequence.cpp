@@ -44,7 +44,8 @@ void show_direct_grid_img_CV_32FC3(const std::string& name, const cv::Mat& img)
 	cv::waitKey();
 }
 
-bool write_img_CV_32FC3_to_jpeg_file(const std::string& name, const cv::Mat& img)
+bool write_img_CV_32FC3_to_jpeg_file(const char* folder_path,
+		const std::string& name, const cv::Mat& img)
 {
 	std::string jpeg_file_name = "";
 	const static std::string ext = ".jpg";
@@ -53,7 +54,7 @@ bool write_img_CV_32FC3_to_jpeg_file(const std::string& name, const cv::Mat& img
 	int number = atoi(str_number.c_str());
 	std::stringstream ss;
 	ss << str_prefix << std::setfill('0') << std::setw(4) << number << ext;
-	jpeg_file_name = ss.str();
+	jpeg_file_name = std::string(folder_path) + std::string("/") + ss.str();
 
 	cv::Mat newImage;
 	img.convertTo(newImage, CV_8UC3, 255.0);
@@ -110,7 +111,8 @@ bool get_yml_files_from_path(const std::string& folder_path,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool create_mat_from_yml(const std::vector<std::string>& yml_file_names,
+bool create_mat_from_yml(const char* folder_path,
+						const std::vector<std::string>& yml_file_names,
 										std::map<std::string, cv::Mat>& mats)
 {
 	mats.clear();
@@ -118,7 +120,8 @@ bool create_mat_from_yml(const std::vector<std::string>& yml_file_names,
 	for (auto it : yml_file_names)
 	{
 		cv::Mat img;
-		read_grid_img_CV_32FC3(it, img);
+		read_grid_img_CV_32FC3(
+					std::string(folder_path) + std::string("/") + it, img);
 
 		mats.insert(std::pair<std::string, cv::Mat>(it, img));
 
@@ -153,13 +156,13 @@ int main(int argc, char** ppcargv)
 		std::map<std::string, cv::Mat> mats;
 		mats.clear();
 
-		create_mat_from_yml(yml_file_names, mats);
+		create_mat_from_yml(ppcargv[1], yml_file_names, mats);
 
 		for (auto it : yml_file_names)
 		{
 			auto it_map = mats.find(it);
 			//show_direct_grid_img_CV_32FC3(it_map->first, it_map->second);
-			write_img_CV_32FC3_to_jpeg_file(it_map->first, it_map->second);
+			write_img_CV_32FC3_to_jpeg_file(ppcargv[1], it_map->first, it_map->second);
 		}
 	}
 

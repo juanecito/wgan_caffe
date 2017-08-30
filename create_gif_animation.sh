@@ -26,7 +26,7 @@
 ################################################################################
 
 #convert -delay 40 wgan_grid*.jpg -loop 0 cifar10.gif
-convert -delay 20 wgan_grid*.jpg cifar10.gif
+convert -delay 100 wgan_grid*.jpg cifar10.gif
 
 exit 0
 
