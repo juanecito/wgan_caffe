@@ -18,9 +18,9 @@
 # * with this program.  If not, see <http://www.gnu.org/licenses/>.
 # */
 
-#* @file launch_wgan_caffe.sh
+#* @file launch_wgan_cifar10_caffe.sh
 # * @author Juan Maria Gomez Lopez <juanecitorr@gmail.com>
-# * @date 20 Jun 2017
+# * @date 20 Aug 2017
 # */
 
 ################################################################################
@@ -43,54 +43,70 @@ SOLVER_G_STATE_C=./wgan_g_iter_1560.solverstate
 
 SOLVER_D_STATE_D=./wgan_d_iter_58500.solverstate
 
-Z_VECTOR_BIN_FILE=./z_vector.bin
-Z_VECTOR_SIZE=100
-LOG_FILE=./wgan.log
-
 BATCH_SIZE=64
 
 ITER_D_BY_G=5
 TOTAL_ITERS=780
 
+TIMESTAMP=`date +%Y%m%d%H%M%S`
+DATASET=Cifar10
+DATA_SOURCE_FOLDER_PATH=./bin/cifar-10-batches-bin
+OUTPUT_FOLDER_PATH=wgan_cifar10_${TIMESTAMP}
+
+Z_VECTOR_BIN_FILE=${OUTPUT_FOLDER_PATH}/z_vector.bin
+Z_VECTOR_SIZE=100
+LOG_FILE=${OUTPUT_FOLDER_PATH}/wgan_cifar10.log
+
 ################################################################################
 
 . ./wgan_exports
 
-if ! [ -f "${SOLVER_G_STATE_B}" ]; then
+mkdir -p ${OUTPUT_FOLDER_PATH}
+
+if ! [ -f "${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_B}" ]; then
 	${WGAN_BIN_FILE} --run-wgan --log ${LOG_FILE} --batch-size ${BATCH_SIZE} \
 				--d-iters-by-g-iter ${ITER_D_BY_G} --main-iter ${TOTAL_ITERS} \
 				--z-vector-bin-file ${Z_VECTOR_BIN_FILE} \
 				--z-vector-size ${Z_VECTOR_SIZE} \
+				--dataset ${DATASET} \
+				--data-src-path ${DATA_SOURCE_FOLDER_PATH} \
+				--output-path ${OUTPUT_FOLDER_PATH} \
 				--solver-d-model ${SOLVER_D_MODEL_A} \
 				--solver-g-model ${SOLVER_G_MODEL_A}
 				
 fi
 
-SOLVER_D_STATE_B=`ls -1rt wgan_d_iter_*solverstate | tail -1`
+SOLVER_D_STATE_B=`ls -1rt ${OUTPUT_FOLDER_PATH}/wgan_d_iter_*solverstate | tail -1`
 
-if ! [ -f "${SOLVER_G_STATE_C}" ] && [ -f "${SOLVER_G_STATE_B}" ]; then
+if ! [ -f "${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_C}" ] && [ -f "${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_B}" ]; then
 	${WGAN_BIN_FILE} --run-wgan --log ${LOG_FILE} --batch-size ${BATCH_SIZE} \
 				--d-iters-by-g-iter ${ITER_D_BY_G} --main-iter ${TOTAL_ITERS} \
 				--z-vector-bin-file ${Z_VECTOR_BIN_FILE} \
 				--z-vector-size ${Z_VECTOR_SIZE} \
+				--dataset ${DATASET} \
+				--data-src-path ${DATA_SOURCE_FOLDER_PATH} \
+				--output-path ${OUTPUT_FOLDER_PATH} \
 				--solver-d-model ${SOLVER_D_MODEL_B} \
 				--solver-g-model ${SOLVER_G_MODEL_B} \
-				--solver-d-state ${SOLVER_D_STATE_B} \
-				--solver-g-state ${SOLVER_G_STATE_B}
+				--solver-d-state ${OUTPUT_FOLDER_PATH}/${SOLVER_D_STATE_B} \
+				--solver-g-state ${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_B}
 
 fi
 
-SOLVER_D_STATE_C=`ls -1rt wgan_d_iter_*solverstate | tail -1`
+SOLVER_D_STATE_C=`ls -1rt ${OUTPUT_FOLDER_PATH}/wgan_d_iter_*solverstate | tail -1`
 
-if ! [ -f "${SOLVER_G_STATE_D}" ] && [ -f "${SOLVER_G_STATE_C}" ]; then
+if ! [ -f "${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_D}" ] && [ -f "${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_C}" ]; then
 	${WGAN_BIN_FILE} --run-wgan --log ${LOG_FILE} --batch-size ${BATCH_SIZE} \
 				--d-iters-by-g-iter ${ITER_D_BY_G} --main-iter ${TOTAL_ITERS} \
 				--z-vector-bin-file ${Z_VECTOR_BIN_FILE} \
 				--z-vector-size ${Z_VECTOR_SIZE} \
+				--dataset ${DATASET} \
+				--data-src-path ${DATA_SOURCE_FOLDER_PATH} \
+				--output-path ${OUTPUT_FOLDER_PATH} \
 				--solver-d-model ${SOLVER_D_MODEL_C} \
 				--solver-g-model ${SOLVER_G_MODEL_C} \
-				--solver-d-state ${SOLVER_D_STATE_C} \
-				--solver-g-state ${SOLVER_G_STATE_C}
+				--solver-d-state ${OUTPUT_FOLDER_PATH}/${SOLVER_D_STATE_C} \
+				--solver-g-state ${OUTPUT_FOLDER_PATH}/${SOLVER_G_STATE_C}
 
 fi
 

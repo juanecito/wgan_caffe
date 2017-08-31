@@ -69,3 +69,15 @@ main_iters: 780
 
 
 valgrind --tool=callgrind ./bin/wgan_profile --run-wgan --log ./wgan.log --batch-size 64 --d-iters-by-g-iter 5 --main-iter 1 --z-vector-bin-file ./z_vector.bin --z-vector-size 100 --solver-d-model ./models/solver_d_lr_profiler.prototxt --solver-g-model ./models/solver_g_lr_profiler.prototxt
+
+
+
+
+./bin/wgan_release --run-wgan --log wgan_cifar10_20170831154716/wgan_cifar10.log --batch-size 64 --d-iters-by-g-iter 5 --main-iter 780 --z-vector-bin-file wgan_cifar10_20170831154716/z_vector.bin --z-vector-size 100 --dataset Cifar10 --data-src-path ./bin/cifar-10-batches-bin --output-path wgan_cifar10_20170831154716 --solver-d-model ./models/solver_d_lr_A.prototxt --solver-g-model ./models/solver_g_lr_A.prototxt
+
+
+
+
+
+
+

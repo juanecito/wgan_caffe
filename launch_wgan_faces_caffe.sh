@@ -20,7 +20,7 @@
 
 #* @file launch_wgan_faces_caffe.sh
 # * @author Juan Maria Gomez Lopez <juanecitorr@gmail.com>
-# * @date 20 Jun 2017
+# * @date 20 Aug 2017
 # */
 
 ################################################################################

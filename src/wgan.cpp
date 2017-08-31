@@ -23,8 +23,6 @@
  */
 
 #include <cmath>
-#include <ctime>
-#include <chrono>
 #include <random>
 #include <memory>
 #include <algorithm>
@@ -39,6 +37,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <cublas_v2.h>
 
 #include <caffe/caffe.hpp>
 
@@ -61,6 +60,8 @@
 #include "CCifar10.hpp"
 #include "CCustomLossLayerBackwardGPU.hpp"
 
+#include "CTimer.hpp"
+#include "CCDistrGen.hpp"
 #include "CClampFunctor.hpp"
 
 #include "config_args.hpp"
@@ -95,10 +96,8 @@ static void takeToken(int owner)
 	while (owner != current_owner)
 	{
 		pthread_cond_wait(&solvers_cond, &solvers_mutex);
-		//printf("watch_count(): thread %d Condition signal received.\n", owner);
 	}
 
-	//printf("take token: thread %d.\n", owner);
 	pthread_mutex_unlock(&solvers_mutex);
 
 }
@@ -116,9 +115,7 @@ static void releaseToken(int owner)
 	{
 		current_owner += 1; current_owner %= 2;
 		pthread_cond_signal(&solvers_cond);
-		//printf("start: thread %d.\n", owner);
 	}
-	//printf("release token thread %d  unlocking mutex\n", owner);
 	pthread_mutex_unlock(&solvers_mutex);
 }
 
@@ -456,32 +453,11 @@ void get_data_from_cifar10(CCifar10* cifar10,
 		return scale(count, 3, 32, 32, data, 64, 64);
 		};
 
-//	pthread_mutex_lock(&solvers_mutex);
-//	*train_labels = nullptr;
-//	count_train = cifar10->get_all_train_labels(train_labels);
-//
-//	*test_labels = nullptr;
-//	count_test = cifar10->get_all_test_labels(test_labels);
-//
-//	*train_imgs = nullptr;
-//	count_train = cifar10->get_all_train_batch_img(train_imgs, {fn_norm, fn_scale_64});
-//
-//	*test_imgs = nullptr;
-//	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
-//	pthread_mutex_unlock(&solvers_mutex);
-
 	pthread_mutex_lock(&solvers_mutex);
-//	*train_labels = nullptr;
-//	count_train = cifar10->get_all_train_labels(train_labels);
-
-//	*test_labels = nullptr;
-//	count_test = cifar10->get_all_test_labels(test_labels);
 
 	*train_imgs = nullptr;
 	count_train = cifar10->get_train_batch_img_by_label(0, train_imgs, {fn_norm, fn_scale_64});
 
-//	*test_imgs = nullptr;
-//	count_test = cifar10->get_all_test_batch_img(test_imgs, {fn_norm, fn_scale_64});
 	pthread_mutex_unlock(&solvers_mutex);
 }
 
@@ -614,6 +590,15 @@ static void* d_thread_fun(void* interSolverData)
 
 #if defined(RUN_GPU)
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+
+	cublasHandle_t cublasHandle = caffe::Caffe::cublas_handle();
+	std::cout << "Cublas handle: " << &cublasHandle << std::endl;
+
+	cublasStatus_t ret;
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+	cublasSetStream(cublasHandle, stream);
+
 #else
 	caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif
@@ -622,6 +607,12 @@ static void* d_thread_fun(void* interSolverData)
 	boost::shared_ptr<caffe::Solver<float> > solver;
 
 	caffe::ReadSolverParamsFromTextFileOrDie(ps_interSolverData->solver_model_file_d_, &solver_param);
+
+	std::string snapshot_file = solver_param.snapshot_prefix();
+	std::string snapshot_path =
+			ps_interSolverData->output_folder_path_ + std::string("/") + snapshot_file;
+	solver_param.set_snapshot_prefix(snapshot_path);
+
 	solver.reset(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int current_iter_d = 0;
@@ -657,6 +648,8 @@ static void* d_thread_fun(void* interSolverData)
 
 	unsigned int d_iter_by_g_real = 0;
 
+	CTimer timer;
+	CCDistrGen<float> distgen(batch_size * z_vector_size);
 
 	for (unsigned int uiI = ps_interSolverData->current_iter_;
 			uiI < ps_interSolverData->max_iter_; uiI++)
@@ -669,10 +662,8 @@ static void* d_thread_fun(void* interSolverData)
 
 		for (unsigned int uiJ = 0; uiJ < d_iter_by_g_real; uiJ++)
 		{
-
+//			timer.tic();
 			if ((data_index * batch_size) > (count_train - batch_size) ) data_index = 0;
-			//std::cout << "count train: " << count_train << std::endl;
-			//show_grid_img_CV_32FC3(64, 64, train_imgs + (data_index * batch_size * 3 * 64 * 64), 3, 8, 8);
 
 			//------------------------------------------------------------------
 			// Train D with real
@@ -711,8 +702,17 @@ static void* d_thread_fun(void* interSolverData)
 			cudaMemcpy(input_label->mutable_gpu_data(),
 					ps_interSolverData->gpu_zeros_, batch_size * sizeof(float),
 					cudaMemcpyDeviceToDevice);
+					
+//			timer.tac();
+//			double time3 = timer.Elasped();
+//			std::cout << "Time 3: " << time3 << std::endl;
+//			timer.tic();
 
 			solver->StepOne_ForBackAndUpdate();
+
+//			timer.tac();
+//			double time4 = timer.Elasped();
+//			std::cout << "Time 4: " << time4 << std::endl;
 
 			if (uiJ == (d_iter_by_g_real - 1))
 			{
@@ -770,6 +770,15 @@ static void* g_thread_fun(void* interSolverData)
 
 #if defined(RUN_GPU)
 	caffe::Caffe::set_mode(caffe::Caffe::GPU);
+
+	cublasHandle_t cublasHandle = caffe::Caffe::cublas_handle();
+	std::cout << "Cublas handle: " << &cublasHandle << std::endl;
+
+	cublasStatus_t ret;
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+	cublasSetStream(cublasHandle, stream);
+
 #else
 	caffe::Caffe::set_mode(caffe::Caffe::CPU);
 #endif
@@ -778,6 +787,12 @@ static void* g_thread_fun(void* interSolverData)
 
 	caffe::SolverParameter solver_param;
 	caffe::ReadSolverParamsFromTextFileOrDie(ps_interSolverData->solver_model_file_g_, &solver_param);
+
+	std::string snapshot_file = solver_param.snapshot_prefix();
+	std::string snapshot_path =
+			ps_interSolverData->output_folder_path_ + std::string("/") + snapshot_file;
+	solver_param.set_snapshot_prefix(snapshot_path);
+
 	std::shared_ptr<caffe::Solver<float> > solver(caffe::SolverRegistry<float>::CreateSolver(solver_param));
 
 	int current_iter_g = 0;
@@ -794,19 +809,17 @@ static void* g_thread_fun(void* interSolverData)
 	caffe::Net<float>* net_g = ps_interSolverData->net_g_ = solver->net().get();
 	pthread_barrier_wait(&solvers_barrier);
 	//--------------------------------------------------------------------------
-
 	unsigned int batch_size = ps_interSolverData->batch_size_;
 	unsigned int z_vector_size = ps_interSolverData->z_vector_size_;
+
+	CCDistrGen<float> distgen(batch_size * z_vector_size);
 
 	auto input_g = ps_interSolverData->net_g_->blob_by_name("data");
 	input_g->Reshape({(int)batch_size, (int)z_vector_size, 1, 1});
 
 	auto blob_output_g = net_g->blob_by_name("gconv5");
 	auto net_d_blob_data = ps_interSolverData->net_d_->blob_by_name("data");
-	//auto blob_output_d = ps_interSolverData->net_d_->blob_by_name("conv5");
-
 	auto input_label_d = ps_interSolverData->net_d_->blob_by_name("label");
-
 
 	for (unsigned int uiI = current_iter_g; uiI < max_iter_g; uiI++)
 	{
@@ -848,12 +861,8 @@ static void* g_thread_fun(void* interSolverData)
 		std::cout << "loss_G:" << loss_G << std::endl;
 		log_file << "loss_G:" << loss_G << std::endl;
 
-		if (uiI > 0 && uiI % 10 == 0)
+		if (uiI > 0 && uiI % 100 == 0)
 		{
-//			memcpy(input_g->mutable_cpu_data(),
-//					ps_interSolverData->z_fix_data_,
-//					batch_size * z_vector_size * sizeof(float));
-
 			cudaMemcpy(input_g->mutable_gpu_data(),
 								ps_interSolverData->gpu_z_fix_data_,
 								batch_size * z_vector_size * sizeof(float),
@@ -861,8 +870,7 @@ static void* g_thread_fun(void* interSolverData)
 
 			net_g->Forward();
 			const float* img_g_data = net_g->blob_by_name("gconv5")->cpu_data();
-			//show_grid_img_CV_32FC3(64, 64, img_g_data, 3, 8, 8);
-			std::string file_name =
+			std::string file_name = ps_interSolverData->output_folder_path_ + std::string("/") +
 				std::string("wgan_grid") + std::to_string(uiI) + std::string(".yml");
 			write_grid_img_CV_32FC3(file_name, 64, 64, img_g_data, 3, 8, 8);
 		}
@@ -892,54 +900,22 @@ static void generate_cuda_data(S_InterSolverData* ps_interSolverData)
 			ps_interSolverData->batch_size_ * sizeof(float)));
 	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_zeros_),
 			ps_interSolverData->batch_size_ * sizeof(float)));
+
+//	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_train_imgs_),
+//			ps_interSolverData->count_train_* 3 * 64 * 64 * sizeof(float)));
+
 	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_ones_, ones,
 			ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyHostToDevice));
 	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_zeros_, zeros,
 			ps_interSolverData->batch_size_ * sizeof(float), cudaMemcpyHostToDevice));
 
+//	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_train_imgs_,
+//			ps_interSolverData->train_imgs_,
+//			ps_interSolverData->count_train_* 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
+
 	delete[] ones;
 	delete[] zeros;
 
-	//--------------------------------------------------------------------------
-	/*
-	float* train_labels = nullptr;
-	float* test_labels = nullptr;
-	float* train_imgs = nullptr;
-	float* test_imgs = nullptr;
-	unsigned int count_train = 0;
-	unsigned int count_test = 0;
-
-	get_data_from_cifar10(ps_interSolverData->cifar10_,
-			&train_labels, &test_labels, &train_imgs, &test_imgs,
-			count_train, count_test);
-
-	ps_interSolverData->train_labels_ = train_labels;
-	ps_interSolverData->test_labels_ = test_labels;
-	ps_interSolverData->train_imgs_ = train_imgs;
-	ps_interSolverData->test_imgs_ = test_imgs;
-	ps_interSolverData->count_train_ = count_train;
-	ps_interSolverData->count_test_ = count_test;
-
-
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_train_labels_),
-			count_train * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_test_labels_),
-			count_test * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_train_imgs_),
-			count_train * 3 * 64 * 64 * sizeof(float)));
-	CUDA_CHECK_RETURN(cudaMalloc((void**)&(ps_interSolverData->gpu_test_imgs_),
-			count_test * 3 * 64 * 64 * sizeof(float)));
-
-
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_train_labels_, train_labels,
-			count_train * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_test_labels_, test_labels,
-			count_test * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_train_imgs_, train_imgs,
-			count_train * 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
-	CUDA_CHECK_RETURN(cudaMemcpy(ps_interSolverData->gpu_test_imgs_, test_imgs,
-			count_test * 3 * 64 * 64 * sizeof(float), cudaMemcpyHostToDevice));
-	*/
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -951,6 +927,7 @@ int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
 	//--------------------------------------------------------------------------
 	struct S_InterSolverData s_interSolverData;
 	s_interSolverData.cifar10_ = cifar10_data;
+	s_interSolverData.faces_data = nullptr;
 
 	s_interSolverData.net_d_ = nullptr;
 	s_interSolverData.net_g_ = nullptr;
@@ -977,7 +954,7 @@ int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
 	s_interSolverData.solver_state_file_g_ = psConfigArgs->solver_g_state_;
 
 	s_interSolverData.log_file_ = new std::fstream(psConfigArgs->logarg_, std::ios_base::app);
-
+	s_interSolverData.output_folder_path_ = psConfigArgs->output_folder_path_;
 	s_interSolverData.gpu_ones_ = nullptr;
 	s_interSolverData.gpu_zeros_ = nullptr;
 
@@ -992,13 +969,15 @@ int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
 
 	int iRC = 0;
 
-	if ((iRC = pthread_create(&thread_d, nullptr, d_thread_fun, &s_interSolverData)) != 0)
+	if ((iRC = pthread_create(&thread_d, nullptr,
+									d_thread_fun, &s_interSolverData)) != 0)
 	{
 		std::cerr << "Error creating thread d " << std::endl;
 		return 1;
 	}
 
-	if ((iRC = pthread_create(&thread_g, nullptr, g_thread_fun, &s_interSolverData)) != 0)
+	if ((iRC = pthread_create(&thread_g, nullptr,
+									g_thread_fun, &s_interSolverData)) != 0)
 	{
 		std::cerr << "Error creating thread g " << std::endl;
 		return 1;
@@ -1019,19 +998,17 @@ int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs)
   return 0;
 }
 
-
+////////////////////////////////////////////////////////////////////////////////
 /**
  * Check the return value of the CUDA runtime API call and exit
  * the application if the call has failed.
  */
-static void CheckCudaErrorAux (const char *file, unsigned line, const char *statement, cudaError_t err)
+static void CheckCudaErrorAux (const char *file, unsigned line,
+									const char *statement, cudaError_t err)
 {
-	if (err == cudaSuccess)
-		return;
-	std::cerr << statement<<" returned " << cudaGetErrorString(err) << "("<<err<< ") at "<<file<<":"<<line << std::endl;
+	if (err == cudaSuccess) return;
+	std::cerr << statement<<" returned " << cudaGetErrorString(err)
+			<< "("<<err<< ") at "<<file<<":"<<line << std::endl;
 	exit (1);
 }
-
-
-
 
