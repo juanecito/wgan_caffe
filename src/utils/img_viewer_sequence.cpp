@@ -53,7 +53,7 @@ bool write_img_CV_32FC3_to_jpeg_file(const char* folder_path,
 	std::string str_number = name.substr(9, name.length() - 9 - 4);
 	int number = atoi(str_number.c_str());
 	std::stringstream ss;
-	ss << str_prefix << std::setfill('0') << std::setw(4) << number << ext;
+	ss << str_prefix << std::setfill('0') << std::setw(5) << number << ext;
 	jpeg_file_name = std::string(folder_path) + std::string("/") + ss.str();
 
 	cv::Mat newImage;
