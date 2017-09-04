@@ -8,9 +8,9 @@ Caffe implementation of WGAN (["Wasserstein GAN"](https://arxiv.org/abs/1701.078
 
 ## Prerequisites
 
-- Computer with Linux
-- You need a special adaptation of Caffe library you can find [this](https://github.com/juanecito/caffe/tree/new_loss_layer). This 
-- For training, an NVIDIA GPU with cuDNN library is strongly recommended for speed. CPU is supported but training is very slow.
+- Computer with Linux. We have use GNU/Linux Debian 9.0.
+- You need a special adaptation of Caffe library you can find [this](https://github.com/juanecito/caffe/tree/new_loss_layer). This version includes two new functions used in WGAN implementation.
+- For training, an NVIDIA GPU with cuDNN library is strongly recommended for speed. CPU is supported but training is very slow. We have use CUDA v8.0 and cuDNN v7.0.
 
 Two main empirical claims:
 
@@ -34,6 +34,12 @@ You need to download faces data in [lw_faces](http://vis-www.cs.umass.edu/lfw/lf
 --d-iters-by-g-iter 5 --main-iter 7800 --z-vector-bin-file [z_vector_file_name] --z-vector-size 100 \
 --dataset LFW_faces --data-src-path ./bin/data/lfw_funneled --output-path [output_folder] --solver-d-model ./models/solver_d_lr_B.prototxt --solver-g-model ./models/solver_g_lr_B.prototxt --solver-d-state [output_folder]/wgan_d_iter_40000.solverstate --solver-g-state [output_folder]/wgan_g_iter_7500.solverstate
 ```
+
+![faces_generation](imgs/result_wgan_faces.png "faces generation")
+
+![this animation](https://drive.google.com/open?id=0B2fG4TcXhjlVX3o2NWM3cWh0VWs)
+
+You can see the training result in [this animation](https://drive.google.com/open?id=0B2fG4TcXhjlVX3o2NWM3cWh0VWs)
 
 ## Reproducing CIFAR10 (airplains) experiments
 
