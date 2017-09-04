@@ -35,11 +35,11 @@ You need to download faces data in [lw_faces](http://vis-www.cs.umass.edu/lfw/lf
 --dataset LFW_faces --data-src-path ./bin/data/lfw_funneled --output-path [output_folder] --solver-d-model ./models/solver_d_lr_B.prototxt --solver-g-model ./models/solver_g_lr_B.prototxt --solver-d-state [output_folder]/wgan_d_iter_40000.solverstate --solver-g-state [output_folder]/wgan_g_iter_7500.solverstate
 ```
 
-![faces_generation](imgs/result_wgan_faces.png "faces generation")
+![faces_generation](img/result_wgan_faces.png "faces generation")
 
-![this animation](https://drive.google.com/open?id=0B2fG4TcXhjlVX3o2NWM3cWh0VWs)
+You can see the training result 
 
-You can see the training result in [this animation](https://drive.google.com/open?id=0B2fG4TcXhjlVX3o2NWM3cWh0VWs)
+![this animation](img/faces.gif "Wgan Faces animation")
 
 ## Reproducing CIFAR10 (airplains) experiments
 
