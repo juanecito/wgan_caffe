@@ -160,7 +160,8 @@ void get_data_from_faces(CLFWFaceDatabase* faces_data,
 {
 
 	auto fn_norm = [](float** data, unsigned int count) -> unsigned int {
-		return norm(count, 3, 64, 64, data);
+		//count = norm(count, 3, 64, 64, data);
+		return norm2(count, 3, 64, 64, data);
 		};
 
 	pthread_mutex_lock(&solvers_mutex);

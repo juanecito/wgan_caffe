@@ -61,6 +61,7 @@ int wgan(CCifar10* cifar10_data, struct S_ConfigArgs* psConfigArgs);
 int wgan_faces(CLFWFaceDatabase* faces_data, struct S_ConfigArgs* psConfigArgs);
 
 ////////////////////////////////////////////////////////////////////////////////
+
 template <typename T>
 void verify_img(caffe::Net<T>* net, CCifar10* cifar10, bool is_memory_data_layer)
 {

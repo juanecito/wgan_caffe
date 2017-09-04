@@ -392,8 +392,6 @@ unsigned int norm(unsigned int batch_count, unsigned int channels,
 unsigned int norm2(unsigned int batch_count, unsigned int channels,
 						unsigned int width, unsigned int height, float** data)
 {
-	unsigned int data_count = batch_count * channels * width * height;
-
 	for (unsigned int uiI = 0; uiI < batch_count; uiI++)
 	{
 		for (unsigned int uiJ = 0; uiJ < channels; uiJ++)
@@ -424,10 +422,10 @@ unsigned int norm2(unsigned int batch_count, unsigned int channels,
 			{
 				double X = (*data)[uiI * channels * width * height + uiJ * width * height + uiK];
 				double Z = (X - mean)/dev;
-				double XX = Z * 0.5 + 0.5; // new mean 0.5 and new dev 0.5
+				double XX = Z * 0.25 + 0.5; // new mean 0.5 and new dev 0.25
 
-				//if (XX < 0.0) XX = 0.0;
-				//else if (XX > 1.0) XX = 1.0;
+				if (XX < 0.0) XX = 0.0;
+				else if (XX > 1.0) XX = 1.0;
 
 				(*data)[uiI * channels * width * height + uiJ * width * height + uiK] = XX;
 			}
