@@ -49,9 +49,15 @@ Third Step with learning rate 0.00001
 
 You can see the training evolution 
 
-![this animation](img/faces.gif "Wgan Faces animation")
+![Animation](img/faces.gif "Wgan Faces animation")
 
-![this animation](img/loss_g_faces.svg "Loss Generator by iteration")
+![loss Generator](img/loss_g_faces.svg "Loss Generator by iteration")
+
+Loss Generator Evolution
+
+![log(loss Discriminator)](img/loss_d_faces.svg "Loss Discriminator by iteration")
+
+Loss Discriminator Evolution
 
 ## Reproducing CIFAR10 (airplanes) experiments
 
@@ -87,9 +93,13 @@ Third Step with learning rate 0.00001
 
 You can see the training evolution 
 
-![this animation](img/cifar10_airplanes.gif "Wgan Cifar10 Airplanes animation")
+![Animation](img/cifar10_airplanes.gif "Wgan Cifar10 Airplanes animation")
 
+![loss Generator](img/loss_g_cifar10_airplanes.svg "Loss Generator by iteration")
 
-![this animation](img/loss_g_cifar10_airplanes.svg "Loss Generator by iteration")
+Loss Generator Evolution
 
+![log(loss Discriminator)](img/loss_d_cifar10_airplanes.svg "Loss Discriminator by iteration")
+
+Loss Discriminator Evolution
 
